@@ -1,53 +1,52 @@
 # This is a test dummy algorithm to get the opportunity cost curves
 from ortools.linear_solver import pywraplp
+import os, json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from ortools.linear_solver import pywraplp
 
-def scheduler(prices):
+
+
+def cost_curves(prices):
     # battery parameters
     capacity=18
     ch_limit=20
     dis_limit=20
     effcy=0.9
-    
-    number_step =len(prices)
-    # [START solver]
-    # Create the linear solver with the GLOP backend.
-    solver = pywraplp.Solver.CreateSolver("GLOP")
-    if not solver:
-        return
-    # [END solver]
-#solver = pywraplp.Solver("B", pywraplp.Solver.GLOP_LINEAR_PROGRAMMING)
 
-#Variables: all are continous
-    charge = [solver.NumVar(0.0, ch_limit, "c"+str(i)) for i in range(number_step)]
-    discharge = [solver.NumVar(0, dis_limit,  "d"+str(i)) for i in range(number_step)]
-    soc = [solver.NumVar(0.0, capacity, "b"+str(i)) for i in range(number_step+1)]
-    soc[0]=0
+    def scheduler(prices): 
+        number_step =len(prices)
+        # [START solver]
+        # Create the linear solver with the GLOP backend.
+        solver = pywraplp.Solver.CreateSolver("GLOP")
+        if not solver:
+            return
 
-#Objective function
-    solver.Minimize(
-        sum(prices[i]*(charge[i]-discharge[i]) for i in range(number_step)))
-    for i in range(number_step):
-      solver.Add(soc[i] +effcy*charge[i] -discharge[i]==soc[i+1])
-  # create the constaints on soc
-    solver.Solve()
-    print("Solution:")
-    print("The Storage's profit =", solver.Objective().Value())
-    charge_list=[]
-    discharge_list=[]
-    for i in range(number_step):
-      charge_list.append(charge[i].solution_value())
-      discharge_list.append(discharge[i].solution_value())
-    return charge_list,discharge_list
-    #print("charge =",charge_list)
-    #print("discharge=", discharge_list)
+    #Variables: all are continous
+        charge = [solver.NumVar(0.0, ch_limit, "c"+str(i)) for i in range(number_step)]
+        discharge = [solver.NumVar(0, dis_limit,  "d"+str(i)) for i in range(number_step)]
+        soc = [solver.NumVar(0.0, capacity, "b"+str(i)) for i in range(number_step+1)]
+        soc[0]=0
 
-def cost_curves(charge,discharge,effcy,prices):
+    #Objective function
+        solver.Minimize(
+            sum(prices[i]*(charge[i]-discharge[i]) for i in range(number_step)))
+        for i in range(number_step):
+            solver.Add(soc[i] +effcy*charge[i] -discharge[i]==soc[i+1])
+        # create the constaints on soc
+            solver.Solve()
+            #print("Solution:")
+            #print("The Storage's profit =", solver.Objective().Value())
+            charge_list=[]
+            discharge_list=[]
+            for i in range(number_step):
+                charge_list.append(charge[i].solution_value())
+                discharge_list.append(discharge[i].solution_value())
+                return charge_list,discharge_list
+            
     #calculate the opportunity cost for charge/discharge
-    #[ch,dis]=scheduler(prices)
-    #effcy=0.9
+    [charge,discharge]=scheduler(prices)
     #find the index of time period for charging/discharging
     index_ch=np.asarray(np.where(np.array(charge)>0)).flatten()
     ch_index =np.where(np.array(charge)>0)[0]
@@ -143,14 +142,7 @@ def cost_curves(charge,discharge,effcy,prices):
             oc_dis_list.append(oc_dis)
             print("Cost curves for charging:", oc_ch_list)
             print("Cost curves for discharging:", oc_dis_list)
-            x =np.linspace(0,23,1)
-            x.shape
-            plt.plot(prices,'-bo',label='Forecast Prices')
-            plt.plot(oc_dis_list,'--r*',label= 'Oppurtunity Cost for Discharge')
-            plt.plot(oc_ch_list,'.g',label= 'Oppurtunity Cost for charge')
-            plt.legend()
-            plt.xlabel('Hours')
-            plt.ylabel('Prices ($/MW)')
+    
 
       
 
