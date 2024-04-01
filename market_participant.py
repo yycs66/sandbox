@@ -1,5 +1,6 @@
 # This is a test dummy algorithm to get the opportunity cost curves
 from ortools.linear_solver import pywraplp
+import offer_utils as ou
 import pandas as pd
 import numpy as np
 import argparse
@@ -52,16 +53,21 @@ class Agent():
         self.price_ceiling = 999
         self.price_floor = 0
 
+        # Add the offer binner
+        self.binner = ou.Binner(output_type='lists')
+
         self._prev_dam_file = 'prev_day_ahead_market'
         self.save_from_previous()
 
     def make_me_an_offer(self):
         # Read in information from the market
         market_type = self.market["market_type"]
-        if market_type == 'DAM':
+        if 'DAM' in market_type:
             offer = self._day_ahead_offer()
-        elif market_type == 'RTM':
+        elif 'RTM' in market_type:
             offer = self._real_time_offer()
+        else:
+            raise ValueError(f"Unable to find offer function for market_type={market_type}")
 
         #TODO: check if we need to clean up offers into maximum of 10 bins
 
@@ -79,11 +85,12 @@ class Agent():
         type = self.market['uid'][:5]
         prices = self.market["previous"][type]["prices"]["EN"]
         self._calculate_offer_curve(prices)
-        self._format_offer_curve()
+        self._descretize_offer_curves()
+        self._format_offer_curves()
 
         return self.formatted_offer
 
-    def _format_offer_curve(self, required_times):
+    def _format_offer_curves(self):
         # Offer parsing script below:
         required_times = [t for t in self.market['timestamps']]
 
@@ -130,6 +137,14 @@ class Agent():
 
         self.formatted_offer = offer_out_dict
 
+    def _descretize_offer_curves(self):
+        charge_offer = self.binner.collate(self.charge_mq, self.charge_mc)
+        discharge_offer = self.binner.collate(self.discharge_mq, self.discharge_mc)
+        self.charge_mq = charge_offer[0]
+        self.charge_mc = charge_offer[1]
+        self.discharge_mq = discharge_offer[0]
+        self.discharge_mc = discharge_offer[1]
+
     def _process_efficiency(self, data:list):
         processed_data = []
         for num in data:
@@ -140,7 +155,7 @@ class Agent():
         return processed_data
 
     def _real_time_offer(self):
-        initial_soc = resource_info["status"][self.rid]["soc"]
+        initial_soc = self.resource["status"][self.rid]["soc"]
         soc_available = initial_soc - self.socmin
         soc_headroom = self.socmax - initial_soc
         block_dc_mc = {}
@@ -152,24 +167,25 @@ class Agent():
 
         t_end = self.market['timestamps'][-1]
         for t_now in self.market['timestamps']:
-            en_ledger = {t:order for t,order in resource_info['ledger'][self.rid]['EN'] if t >= t_now}
+            en_ledger = {t:order for t,order in self.resource['ledger'][self.rid]['EN'].items() if t >= t_now}
             block_ch_mq[t_now] = []
             block_ch_mc[t_now] = []
             block_dc_mq[t_now] = []
             block_dc_mc[t_now] = []
 
             # add blocks for cost of current dispatch:
-            for mq, mc in resource_info['ledger'][self.rid]['EN'][t_now]:
-                if mq < 0:
-                    soc_available += mq * self.efficiency
-                    soc_headroom -= mq * self.efficiency
-                    block_ch_mq[t_now].append(-mq)
-                    block_ch_mc[t_now].append(mc)
-                elif mq > 0:
-                    soc_available -= mq
-                    soc_headroom += mq
-                    block_dc_mq[t_now].append(mq)
-                    block_dc_mc[t_now].append(mc)
+            if t_now in en_ledger.keys():
+                for mq, mc in en_ledger[t_now]:
+                    if mq < 0:
+                        soc_available += mq * self.efficiency
+                        soc_headroom -= mq * self.efficiency
+                        block_ch_mq[t_now].append(-mq)
+                        block_ch_mc[t_now].append(mc)
+                    elif mq > 0:
+                        soc_available -= mq
+                        soc_headroom += mq
+                        block_dc_mq[t_now].append(mq)
+                        block_dc_mc[t_now].append(mc)
 
             # add blocks for soc available/headroom
             ledger_list = [tup for sublist in en_ledger.values() for tup in sublist]
@@ -207,7 +223,7 @@ class Agent():
                 block_dc_mc[t_now].append(self.price_ceiling)
 
         # valuation of post-horizon SoC
-        post_market_ledger = {t: order for t, order in resource_info['ledger'][self.rid]['EN'] if t > t_end}
+        post_market_ledger = {t: order for t, order in self.resource['ledger'][self.rid]['EN'].items() if t > t_end}
         post_market_list = [tup for sublist in post_market_ledger.values() for tup in sublist]
         post_market_sorted = sorted(post_market_list, key=lambda tup:tup[1], reverse=True)
         block_soc_mq[t_end] = []
@@ -221,7 +237,7 @@ class Agent():
             else:
                 remaining_capacity -= remaining_capacity
                 block_soc_mq[t_end].append(remaining_capacity)
-                block_soc_mc.append(mc)
+                block_soc_mc[t_end].append(mc)
         if remaining_capacity:
             block_soc_mq[t_end].append(remaining_capacity)
             block_soc_mc[t_end].append(self.price_ceiling)
