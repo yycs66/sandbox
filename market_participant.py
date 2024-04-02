@@ -460,5 +460,8 @@ if __name__ == '__main__':
 
     # Parse json inputs into python dictionaries
     time_step = args.time_step
-    market_info = json.loads(args.market_file)
-    resource_info = json.loads(args.resource_file)
+    with open(args.market_file, 'r') as f:
+        market_info = json.load(f)
+
+    with open(args.resource_file, 'r') as f:
+        resource_info = json.load(f)
