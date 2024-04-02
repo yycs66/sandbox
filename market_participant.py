@@ -453,12 +453,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('time_step', type=int, help='Integer time step tracking the progress of the\
                         simulated market.')
-    parser.add_argument('market_info', help='json formatted dictionary with market information.')
-    parser.add_argument('resource_info', help='json formatted dictionary with resource information.')
+    parser.add_argument('market_file', help='json formatted dictionary with market information.')
+    parser.add_argument('resource_file', help='json formatted dictionary with resource information.')
 
     args = parser.parse_args()
 
     # Parse json inputs into python dictionaries
     time_step = args.time_step
-    market_info = json.loads(args.market_info)
-    resource_info = json.loads(args.resource_info)
+    market_info = json.loads(args.market_file)
+    resource_info = json.loads(args.resource_file)
