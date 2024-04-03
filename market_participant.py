@@ -465,3 +465,6 @@ if __name__ == '__main__':
 
     with open(args.resource_file, 'r') as f:
         resource_info = json.load(f)
+    
+    offer =Agent(time_step, market_info, resource_info)
+    offer.make_me_an_offer()
