@@ -406,7 +406,7 @@ class Agent():
         j = max((index for index, value in enumerate(combined_list[:idx]) if value < 0), default=None)
         arr1 = 0 if idx == len(prices)-1 else prices[idx + 1] if idx == len(prices) - 2 else max(prices[(idx + 1):])
         arr2 = 0 if j == idx - 1 else prices[j + 1] if j == idx - 2 else max(prices[(j + 1):idx])
-        print("discharge, idx and len(prices)", j, idx, len(prices))
+        #print("discharge, idx and len(prices)", j, idx, len(prices))
         oc_ch = (-prices[idx] + arr1 + arr2) * self.efficiency
         oc_dis = max(prices[j] / self.efficiency, max(prices[(j + 1):]))
 
@@ -479,16 +479,18 @@ class Agent():
 
 
 if __name__ == '__main__':
-    # Add argument parser for three required input arguments
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('time_step', type=int, help='Integer time step tracking the progress of the\
                         simulated market.')
-    parser.add_argument('market_info', help='json formatted dictionary with market information.')
-    parser.add_argument('resource_info', help='json formatted dictionary with resource information.')
+    parser.add_argument('market_file', help='json formatted dictionary with market information.')
+    parser.add_argument('resource_file', help='json formatted dictionary with resource information.')
 
     args = parser.parse_args()
 
-    # Parse json inputs into python dictionaries
+    # Parse inputs
     time_step = args.time_step
-    market_info = json.loads(args.market_info)
-    resource_info = json.loads(args.resource_info)
+    with open(args.market_file, 'r') as f:
+        market_info = json.load(f)
+    with open(args.resource_file, 'r') as f:
+        resource_info = json.load(f)
