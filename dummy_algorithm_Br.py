@@ -404,7 +404,7 @@ class Agent():
     def _calc_oc_discharge(self, combined_list, prices, idx):
         # opportunity cost during scheduled discharge
         j = max((index for index, value in enumerate(combined_list[:idx]) if value < 0), default=None)
-        arr1 = 0 if idx == len(prices) else prices[idx + 1] if idx == len(prices) - 1 else max(prices[(idx + 1):])
+        arr1 = 0 if idx == len(prices)-1 else prices[idx + 1] if idx == len(prices) - 2 else max(prices[(idx + 1):])
         arr2 = 0 if j == idx - 1 else prices[j + 1] if j == idx - 2 else max(prices[(j + 1):idx])
         print("discharge, idx and len(prices)", j, idx, len(prices))
         oc_ch = (-prices[idx] + arr1 + arr2) * self.efficiency
