@@ -114,7 +114,7 @@ class Agent():
         block_soc_mq = {}
         for i, power in enumerate(self.discharge_mq):
             block_dc_mq[required_times[i]] = float(power)  # 125MW
-            block_soc_mq[required_times[i]] = 0
+            block_soc_mq[required_times[i]] = 608
 
         # estimate initial SoC for tomorrow's DAM
         t_init = datetime.datetime.strptime(self.market['timestamps'][0],'%Y%m%d%H%M')
@@ -145,12 +145,15 @@ class Agent():
         self.formatted_offer = offer_out_dict
 
     def _descretize_offer_curves(self):
-        charge_offer = list(self.binner.collate(self.charge_mq, self.charge_mc))
-        discharge_offer = list(self.binner.collate(self.discharge_mq, self.discharge_mc))
-        self.charge_mq = charge_offer[0]
-        self.charge_mc = charge_offer[1]
-        self.discharge_mq = discharge_offer[0]
-        self.discharge_mc = discharge_offer[1]
+        for i in range(len(self.charge_mq)):
+            if type(self.charge_mq[i]) == list:
+                charge_offer = list(self.binner.collate(self.charge_mq[i], self.charge_mc[i]))
+                self.charge_mq[i] = charge_offer[0]
+                self.charge_mc[i] = charge_offer[1]
+            if type(self.discharge_mq[i]) == list:
+                discharge_offer = list(self.binner.collate(self.discharge_mq[i], self.discharge_mc[i]))
+                self.discharge_mq[i] = discharge_offer[0]
+                self.discharge_mc[i] = discharge_offer[1]
 
     def _process_efficiency(self, data:list):
         processed_data = []
@@ -369,7 +372,9 @@ class Agent():
 
         # marginal cost comes from opportunity cost calculation
         charge_mq, discharge_mq = self._scheduler(prices)
+        print("charge_mq and dicharge_mq", charge_mq, discharge_mq)
         charge_mc, discharge_mc = self._calculate_opportunity_costs(prices, charge_mq, discharge_mq)
+        print("charge_mc and dicharge_mc", charge_mc, discharge_mc)
         # self.charge_mc = oc['charge cost'].values
         # self.discharge_mc = oc['disch cost'].values
         self.charge_mc = charge_mc
@@ -468,7 +473,7 @@ class Agent():
         discharge_list = []
         dasoc_list=[]
         for i in range(number_step):
-            print("time step", i, "charge", charge[i].solution_value(), "discharge", discharge[i].solution_value())
+            #print("time step", i, "charge", charge[i].solution_value(), "discharge", discharge[i].solution_value())
             charge_list.append(charge[i].solution_value())
             discharge_list.append(discharge[i].solution_value())
             #dasoc_list.append(dasoc[i].solution_value())
