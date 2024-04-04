@@ -14,6 +14,7 @@ socmin = 128
 chmax = 125
 dcmax = 125
 efficiency = 0.892
+duration_minutes = 5
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -42,6 +43,8 @@ class Agent():
         self.resource = resource_info
         self.rid = resource_info['rid']
 
+        self.duration_minutes = duration_minutes
+
         # Standard battery parameters
         self.socmax = socmax
         self.socmin = socmin
@@ -69,8 +72,6 @@ class Agent():
         else:
             raise ValueError(f"Unable to find offer function for market_type={market_type}")
 
-        #TODO: check if we need to clean up offers into maximum of 10 bins
-
         # Then save the result
         self._save_json(offer, f'offer_{self.step}')
 
@@ -81,9 +82,10 @@ class Agent():
 
     def _day_ahead_offer(self):
         # Make the offer curves and unload into arrays
-        # type = self.market['market_type']
-        type = self.market['uid'][:5]
-        prices = self.market["previous"][type]["prices"]["EN"]
+        type = self.market['market_type']
+        # bus = self.resource['bus'] #TODO: switch when this is updated
+        bus = 'NEVP'
+        prices = self.market["previous"][type]["prices"]["EN"][bus]
         self._calculate_offer_curve(prices)
         self._descretize_offer_curves()
         self._format_offer_curves()
@@ -116,16 +118,21 @@ class Agent():
 
         # estimate initial SoC for tomorrow's DAM
         t_init = datetime.datetime.strptime(self.market['timestamps'][0],'%Y%m%d%H%M')
-        #t_now = self.market['current_time']
-        t_now = t_init - datetime.timedelta(hours=15) #TODO: switch back once above in included in market_data
+        # t_now = datetime.datetime.strptime(self.market['current_time'],'%Y%m%d%H%M') #TODO: switch back once above in included in market_data
+        t_now = datetime.datetime.strptime(self.market['current_time'][5:],'%Y%m%d%H%M')
         t_init = t_init.strftime('%Y%m%d%H%M')
         t_now = t_now.strftime('%Y%m%d%H%M')
-        schedule = self.resource['schedule'][self.rid]['EN']
-        schedule_to_tomorrow = [q for t,q in schedule if t_now <= t < t_init]
-        schedule_to_tomorrow = self._process_efficiency(schedule_to_tomorrow)
-        soc_estimate = self.resource['status'][self.rid]['soc'] - sum(schedule_to_tomorrow)
+        if self.resource['schedule'].keys():
+            schedule = self.resource['schedule'][self.rid]['EN']
+            schedule_to_tomorrow = [q for t,q in schedule if t_now <= t < t_init]   # these may be misordered but that is OK
+            schedule_to_tomorrow = self._process_efficiency(schedule_to_tomorrow)
+            soc_estimate = self.resource['status'][self.rid]['soc'] - sum(schedule_to_tomorrow) * self.duration_minutes / 60
+            dispatch_estimate = self.resource['schedule'][self.rid]['EN'][t_init]
+        else:
+            soc_estimate = self.resource['status'][self.rid]['soc']
+            dispatch_estimate = 0
         soc_estimate = min(self.socmax, max(soc_estimate, self.socmin))
-        dispatch_estimate = self.resource['schedule'][self.rid]['EN'][t_init]
+
 
         # Package the dictionaries into an output formatted dictionary
         offer_out_dict = {self.rid: {}}
@@ -138,8 +145,8 @@ class Agent():
         self.formatted_offer = offer_out_dict
 
     def _descretize_offer_curves(self):
-        charge_offer = self.binner.collate(self.charge_mq, self.charge_mc)
-        discharge_offer = self.binner.collate(self.discharge_mq, self.discharge_mc)
+        charge_offer = list(self.binner.collate(self.charge_mq, self.charge_mc))
+        discharge_offer = list(self.binner.collate(self.discharge_mq, self.discharge_mc))
         self.charge_mq = charge_offer[0]
         self.charge_mc = charge_offer[1]
         self.discharge_mq = discharge_offer[0]
@@ -290,8 +297,9 @@ class Agent():
         now = self.market['timestamps'][0]
         hour_beginning = now[:10] + '00'
         type = self.market['market_type']
+        bus = self.resource['bus']
         if hour_beginning in self.market['previous'][type]['timestamp']:
-            prices = self.market['previous'][type]['EN']
+            prices = self.market['previous'][type]['EN'][bus]
             times = self.market['previous'][type]['timestamp']
         else:
             with open(self._prev_dam_file, "r") as file:
@@ -300,39 +308,42 @@ class Agent():
                 prices = [value for value in prices.values()]
         return prices, times
 
-    def _save_json(self, save_dict, filename):
+    def _save_json(self, save_dict, filename=None):
         # Save as json file in the current directory with name offer_{time_step}.json
-        with open(f'offer_{self.step}.json', 'w') as f:
+        if filename is None:
+            filename =f'offer_{self.step}.json'
+        with open(filename, 'w') as f:
             json.dump(save_dict, f, indent=4, cls=NpEncoder)
 
-    def _calculate_opportunity_costs(self, prices):
-
-        self._scheduler(prices)
+    def _calculate_opportunity_costs(self, prices, charge_mq, discharge_mq):
 
         # combine the charge/discharge list
-        combined_list = [dis - ch for ch, dis in zip(self._charge_list, self._discharge_list)]
+        combined_list = [dis - ch for ch, dis in zip(charge_mq, discharge_mq)]
+        time = self.market['timestamps']
+        schedule = dict(zip(time, combined_list))
 
         # finding the index for first charge and last discharge
-        t1_ch = next((index for index, value in enumerate(combined_list) if value < 0), None)
-        t_last_dis = next((index for index in range(len(combined_list) - 1, -1, -1) if combined_list[index] > 0), None)
+        t1_ch = next((index for index, key in enumerate(schedule) if schedule[key] < 0), None)
+        t_last_dis = next((i for i in range(len(combined_list) - 1, -1, -1) if combined_list[i] > 0), None)
+        assert isinstance(t1_ch, int), "t1_ch is not an int"
+        assert isinstance(t_last_dis, int), "t_last_dis is not an int"
 
         # create two list for charging/discharging opportunity costs
-        self._oc_dis_list = []
-        self._oc_ch_list = []
+        charge_list = []
+        discharge_list = []
 
-        opportunity_costs = pd.DataFrame(None, index=range(len(prices)), columns=['Time', 'charge cost', 'disch cost'])
-        soc = pd.DataFrame(None, index=range(len(prices) + 1), columns=['Time', 'SOC'])
+        # opportunity_costs = pd.DataFrame(None, index=range(len(prices)), columns=['Time', 'charge cost', 'disch cost'])
+        # soc = pd.DataFrame(None, index=range(len(prices) + 1), columns=['Time', 'SOC'])
 
-
-        for index, row in opportunity_costs.iterrows():
+        for index, key in enumerate(schedule):
             i = index
-            row['Time'] = index
+            value = schedule[key]
 
             # charging
-            if combined_list[i] < 0:
+            if value < 0:
                 oc_ch, oc_dis = self._calc_oc_charge(combined_list, prices, i)
             # discharging
-            elif combined_list[i] > 0:
+            elif value > 0:
                 oc_ch, oc_dis = self._calc_oc_discharge(combined_list, prices, i)
             else:
                 # before first charge
@@ -346,61 +357,74 @@ class Agent():
                     oc_ch, oc_dis = self._calc_oc_between_cycles(combined_list, prices, i)
 
             # save to list
-            self._oc_ch_list.append(oc_ch)
-            self._oc_dis_list.append(oc_dis)
-            # save to dataframe
-            row['charge cost'] = oc_ch
-            row['disch cost'] = oc_dis
+            charge_list.append(oc_ch)
+            discharge_list.append(oc_dis)
 
-        return opportunity_costs
+        assert sum(abs(c) for c in charge_list) > 0, "calc_oc: charge list has no values"
+        assert sum(abs(d) for d in discharge_list) > 0, "calc_oc: discharge list has no values"
+
+        return charge_list, discharge_list
 
     def _calculate_offer_curve(self, prices):
 
         # marginal cost comes from opportunity cost calculation
-        oc = self._calculate_opportunity_costs(prices)
-        self.charge_mc = oc['charge cost'].values
-        self.discharge_mc = oc['disch cost'].values
+        charge_mq, discharge_mq = self._scheduler(prices)
+        charge_mc, discharge_mc = self._calculate_opportunity_costs(prices, charge_mq, discharge_mq)
+        # self.charge_mc = oc['charge cost'].values
+        # self.discharge_mc = oc['disch cost'].values
+        self.charge_mc = charge_mc
+        self.discharge_mc = discharge_mc
 
         # marginal quantities from scheduler values
-        self.charge_mq = self._charge_list
-        self.discharge_mq = self._discharge_list
+        self.charge_mq = charge_mq
+        self.discharge_mq = discharge_mq
 
     def _calc_oc_charge(self, combined_list, prices, idx):
         # opportunity cost during scheduled charge
         j = idx + 1 + next((index for index, value in enumerate(combined_list[idx + 1:]) if value > 0), None)
-        oc_ch = min(prices[1:j], self.efficiency * prices[j]) if idx == 0 else min(np.delete(prices[0:j], idx).min(),
-                                                                                 self.efficiency * prices[j])
 
-        arr1 = prices[0] if idx == 0 else prices[0:idx].min()
-        arr2 = 0 if j == idx + 1 else prices[idx + 1] if j == idx + 2 else prices[(idx + 1):j].min()
-        oc_dis = oc_ch + 0.01 if idx == 0 else (-prices[idx] + arr1 + arr2) / self.efficiency
+        if j == idx + 1:
+            arr2 = 0
+        else:
+            if j == idx + 2:
+                arr2 = prices[idx + 1]
+            else:
+                arr2 = min(prices[(idx + 1):j])
+        if idx == 0:
+            oc_ch = min(min(prices[1:j]), self.efficiency * prices[j])
+            arr1 = prices[0]
+            oc_dis = oc_ch + 0.01
+        else:
+            oc_ch = min(np.delete(np.array(prices[0:j]), idx).min(), self.efficiency * prices[j])
+            arr1 = min(prices[0:idx])
+            oc_dis = (-prices[idx] + arr1 + arr2) / self.efficiency
 
         return oc_ch, oc_dis
 
     def _calc_oc_discharge(self, combined_list, prices, idx):
         # opportunity cost during scheduled discharge
         j = max((index for index, value in enumerate(combined_list[:idx]) if value < 0), default=None)
-        arr1 = 0 if idx == len(prices) else prices[idx + 1] if idx == len(prices) - 1 else prices[(idx + 1):].max()
-        arr2 = 0 if j == idx - 1 else prices[j + 1] if j == idx - 2 else prices[(j + 1):idx].max()
+        arr1 = 0 if idx == len(prices) else prices[idx + 1] if idx == len(prices) - 1 else max(prices[(idx + 1):])
+        arr2 = 0 if j == idx - 1 else prices[j + 1] if j == idx - 2 else max(prices[(j + 1):idx])
         oc_ch = (-prices[idx] + arr1 + arr2) * self.efficiency
-        oc_dis = max(prices[j] / self.efficiency, prices[(j + 1):].max())
+        oc_dis = max(prices[j] / self.efficiency, max(prices[(j + 1):]))
 
         return oc_ch, oc_dis
 
-    def _calc_oc_before_first_charge(self, prices, t1_idx, idx):
+    def _calc_oc_before_first_charge(self, prices, t1_idx:int, idx:int):
         # opportunity cost before first charge
-        max_ch = 0 if idx == t1_idx - 1 else prices[idx + 1] if idx == t1_idx - 2 else prices[(idx + 1):t1_idx].max()
+        max_ch = 0 if idx == t1_idx - 1 else prices[idx + 1] if idx == t1_idx - 2 else max(prices[(idx + 1):t1_idx])
         oc_ch = max(max_ch * self.efficiency, prices[t1_idx])
-        oc_dis = oc_ch + 0.01 if idx == 0 else prices[0] / self.efficiency if idx == 1 else prices[0:idx].min() / self.efficiency
+        oc_dis = oc_ch + 0.01 if idx == 0 else prices[0] / self.efficiency if idx == 1 else min(prices[0:idx]) / self.efficiency
 
         return oc_ch, oc_dis
 
     def _calc_oc_after_last_discharge(self, prices, t_last, idx):
         # opportunity cost after last discharge
-        oc_ch = prices[(idx + 1):].max() * self.efficiency if idx < len(prices) - 2 else prices[idx + 1] if idx == len(
-            prices) - 2 else np.min(prices)
-        arr = prices[idx - 1] if idx == t_last + 2 else prices[(t_last + 1):idx] if idx > t_last + 2 else np.max(prices)
-        oc_dis = min(prices[t_last], arr.min() / self.efficiency)
+        oc_ch = max(prices[(idx + 1):]) * self.efficiency if idx < len(prices) - 2 else prices[idx + 1] if idx == len(
+            prices) - 2 else min(prices)
+        arr = prices[idx - 1] if idx == t_last + 2 else min(prices[(t_last + 1):idx]) if idx > t_last + 2 else max(prices)
+        oc_dis = min(prices[t_last], arr / self.efficiency)
 
         return oc_ch, oc_dis
 
@@ -408,10 +432,10 @@ class Agent():
         j_next = idx + 1 + next((index for index, value in enumerate(combined_list[idx + 1:]) if value > 0),None)
         j_prev = max((index for index, value in enumerate(combined_list[:idx]) if value < 0), default=None)
         oc_ch = 0 if idx < j_prev + 2 else prices[idx - 1] if idx == j_prev + 2 else max(
-            prices[(j_prev + 1):idx].max() * self.efficiency, prices[j_prev])
+            max(prices[(j_prev + 1):idx]) * self.efficiency, prices[j_prev])
         oc_dis = 0 if idx > j_next - 2 else min(prices[j_next],
                                               prices[idx + 1] / self.efficiency) if idx == j_next - 2 else min(
-            prices[j_next], prices[(idx + 1):j_next].min() / self.efficiency)
+            prices[j_next], min(prices[(idx + 1):j_next]) / self.efficiency)
 
         return oc_ch, oc_dis
 
@@ -422,7 +446,7 @@ class Agent():
         # Create the linear solver with the GLOP backend.
         solver = pywraplp.Solver.CreateSolver("GLOP")
         if not solver:
-            return
+            raise ImportError("Scheduler unable to load solver.")
         # [END solver]
 
         #Variables: all are continous
@@ -439,13 +463,18 @@ class Agent():
         solver.Solve()
         #print("Solution:")
         #print("The Storage's profit =", solver.Objective().Value())
-        self._charge_list=[]
-        self._discharge_list=[]
+        charge_list = []
+        discharge_list = []
         dasoc_list=[]
         for i in range(number_step):
-            self._charge_list.append(charge[i].solution_value())
-            self._discharge_list.append(discharge[i].solution_value())
+            charge_list.append(charge[i].solution_value())
+            discharge_list.append(discharge[i].solution_value())
             #dasoc_list.append(dasoc[i].solution_value())
+
+        assert sum(abs(c) for c in charge_list) > 0, "scheduler: charge list has no values"
+        assert sum(abs(d) for d in discharge_list) > 0, "scheduler: discharge list has no values"
+
+        return charge_list, discharge_list
 
 
 if __name__ == '__main__':
