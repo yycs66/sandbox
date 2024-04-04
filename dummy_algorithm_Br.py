@@ -406,6 +406,7 @@ class Agent():
         j = max((index for index, value in enumerate(combined_list[:idx]) if value < 0), default=None)
         arr1 = 0 if idx == len(prices) else prices[idx + 1] if idx == len(prices) - 1 else max(prices[(idx + 1):])
         arr2 = 0 if j == idx - 1 else prices[j + 1] if j == idx - 2 else max(prices[(j + 1):idx])
+        print("discharge", j, idx)
         oc_ch = (-prices[idx] + arr1 + arr2) * self.efficiency
         oc_dis = max(prices[j] / self.efficiency, max(prices[(j + 1):]))
 
