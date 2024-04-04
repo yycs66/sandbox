@@ -468,6 +468,7 @@ class Agent():
         discharge_list = []
         dasoc_list=[]
         for i in range(number_step):
+            print("time step", i, "charge", charge[i].solution_value(), "discharge", discharge[i].solution_value())
             charge_list.append(charge[i].solution_value())
             discharge_list.append(discharge[i].solution_value())
             #dasoc_list.append(dasoc[i].solution_value())
