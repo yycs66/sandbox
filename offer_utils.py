@@ -135,9 +135,9 @@ class Binner():
         if qmin is None:
             qmin = self.qmin
 
-        sorted_tups = sorted(tup_list, key=lambda x: x[0], reverse=reverse) ##todo: check if this is correct
+        sorted_tups = sorted(tup_list, key=lambda x: x[1], reverse=reverse) ##todo: check if this is correct
         collated_list = []
-        total_qty = sum(x[1] for x in sorted_tups)
+        total_qty = sum(x[0] for x in sorted_tups)
         remaining_qty = total_qty
 
         for i, (qty, price) in enumerate(sorted_tups):
