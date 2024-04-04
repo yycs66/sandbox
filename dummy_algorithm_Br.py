@@ -201,6 +201,27 @@ class Agent():
             ledger_list = [tup for sublist in en_ledger.values() for tup in sublist]
             ledger_decreasing = sorted(ledger_list, key=lambda tup:tup[1], reverse=True)
             ledger_increasing = sorted(ledger_list, key=lambda tup:tup[1], reverse=False)
+            
+            # decreasing ledger for soc cost curve
+
+            block_soc_mq[t_now] = []
+            block_soc_mc[t_now] = []
+            remaining_capacity = soc_available
+            for mq, mc in ledger_decreasing:
+                if 0 < mq <= remaining_capacity:
+                    remaining_capacity -= mq
+                    block_soc_mq[t_now].append(mq)
+                    block_soc_mc[t_now].append(mc)
+                else:
+                    remaining_capacity -= remaining_capacity
+                    block_soc_mq[t_now].append(remaining_capacity)
+                    block_soc_mc[t_now].append(mc)
+            if remaining_capacity:
+                block_soc_mq[t_now].append(remaining_capacity)
+                block_soc_mc[t_now].append(self.price_ceiling)
+            block_soc_mq[t_now].append(soc_headroom)
+            block_soc_mc[t_now].append(self.price_floor)   
+
             # use decreasing price ledger for charging cost curve
             remaining_capacity = soc_headroom
             for mq, mc in ledger_decreasing:
