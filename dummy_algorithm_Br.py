@@ -209,11 +209,16 @@ class Agent():
             block_soc_mq[t_now] = []
             block_soc_mc[t_now] = []
             remaining_capacity = soc_available
+            max_blocks =9
+            block = 0
             for mq, mc in ledger_decreasing:
+                if block > max_blocks:
+                    break
                 if 0 < mq <= remaining_capacity:
                     remaining_capacity -= mq*5/60
-                    block_soc_mq[t_now].append(mq)
+                    block_soc_mq[t_now].append(mq*5/60)
                     block_soc_mc[t_now].append(mc)
+                    block += 1
                 #else:
                     #remaining_capacity -= remaining_capacity
                     #block_soc_mq[t_now].append(remaining_capacity)
@@ -256,7 +261,7 @@ class Agent():
                 block_dc_mc[t_now].append(self.price_ceiling)
 
         # valuation of post-horizon SoC
-        post_market_ledger = {t: order for t, order in self.resource['ledger'][self.rid]['EN'].items() if t > t_end}
+        """ post_market_ledger = {t: order for t, order in self.resource['ledger'][self.rid]['EN'].items() if t > t_end}
         post_market_list = [tup for sublist in post_market_ledger.values() for tup in sublist]
         post_market_sorted = sorted(post_market_list, key=lambda tup:tup[1], reverse=True)
         block_soc_mq[t_end] = []
@@ -265,7 +270,7 @@ class Agent():
         for mq, mc in post_market_sorted:
             if 0 < mq <= remaining_capacity:
                 remaining_capacity -= mq*5/60
-                block_soc_mq[t_end].append(mq)
+                block_soc_mq[t_end].append(mq*5/60)
                 block_soc_mc[t_end].append(mc)
             #else:
                 #remaining_capacity -= remaining_capacity
@@ -275,7 +280,7 @@ class Agent():
             block_soc_mq[t_end].append(remaining_capacity)
             block_soc_mc[t_end].append(self.price_ceiling)
         block_soc_mq[t_end].append(soc_headroom)
-        block_soc_mc[t_end].append(self.price_floor)
+        block_soc_mc[t_end].append(self.price_floor) """
 
 
         # Package the dictionaries into an output formatted dictionary
