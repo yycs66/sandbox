@@ -209,8 +209,8 @@ class Agent():
             block_soc_mq[t_now] = []
             block_soc_mc[t_now] = []
             remaining_capacity = soc_available
-            max_blocks =9
-            block = 0
+            max_blocks =8
+            block = 1
             for mq, mc in ledger_decreasing:
                 if block > max_blocks:
                     break
