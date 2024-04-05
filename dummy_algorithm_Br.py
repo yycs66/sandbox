@@ -74,6 +74,7 @@ class Agent():
 
         # Then save the result
         self._save_json(offer, f'offer_{self.step}.json')
+        return offer
 
     def save_from_previous(self):
         # if the current market type is DAM, then we need to save it in order to run RTM
@@ -210,7 +211,7 @@ class Agent():
             remaining_capacity = soc_available
             for mq, mc in ledger_decreasing:
                 if 0 < mq <= remaining_capacity:
-                    remaining_capacity -= mq
+                    remaining_capacity -= mq*5/60
                     block_soc_mq[t_now].append(mq)
                     block_soc_mc[t_now].append(mc)
                 #else:
@@ -263,14 +264,14 @@ class Agent():
         remaining_capacity = soc_available
         for mq, mc in post_market_sorted:
             if 0 < mq <= remaining_capacity:
-                remaining_capacity -= mq
+                remaining_capacity -= mq*5/60
                 block_soc_mq[t_end].append(mq)
                 block_soc_mc[t_end].append(mc)
-            else:
-                remaining_capacity -= remaining_capacity
-                block_soc_mq[t_end].append(remaining_capacity)
-                block_soc_mc[t_end].append(mc)
-        if remaining_capacity:
+            #else:
+                #remaining_capacity -= remaining_capacity
+                #block_soc_mq[t_end].append(remaining_capacity)
+                #block_soc_mc[t_end].append(mc)
+        if remaining_capacity>0:
             block_soc_mq[t_end].append(remaining_capacity)
             block_soc_mc[t_end].append(self.price_ceiling)
         block_soc_mq[t_end].append(soc_headroom)
