@@ -217,6 +217,7 @@ class Agent():
                     block_soc_mq[t_now].append(remaining_capacity)
                     block_soc_mc[t_now].append(mc)
             if remaining_capacity:
+                remaining_capacity = max(0, remaining_capacity)
                 block_soc_mq[t_now].append(remaining_capacity)
                 block_soc_mc[t_now].append(self.price_ceiling)
             block_soc_mq[t_now].append(soc_headroom)
