@@ -74,7 +74,6 @@ class Agent():
 
         # Then save the result
         self._save_json(offer, f'offer_{self.step}.json')
-        print("RT soc",offer['block_soc_mc'])
         return offer
 
     def save_from_previous(self):
@@ -121,7 +120,7 @@ class Agent():
         # estimate initial SoC for tomorrow's DAM
         t_init = datetime.datetime.strptime(self.market['timestamps'][0],'%Y%m%d%H%M')
         t_now = datetime.datetime.strptime(self.market['current_time'],'%Y%m%d%H%M') # update to new market_data
-        #t_now = datetime.datetime.strptime(self.market['current_time'][5:],'%Y%m%d%H%M')
+        #t_now = datetime.datetime.strptime(self.market['current_time'][5:],'%Y%m%d%H%M')# current_time: TSTDM2021...
         t_init = t_init.strftime('%Y%m%d%H%M')
         t_now = t_now.strftime('%Y%m%d%H%M')
         if self.resource['schedule'].keys():
