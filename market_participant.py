@@ -52,9 +52,7 @@ class Scaled_agent():
                 with open(f'offer_{self.step}.json', 'w') as f: #todo: dummy offer's name is needed
                     json.dump(dummy_offer, f, cls=NpEncoder)
         elif 'RTM' in self.market_type:
-                keys_factor ={'block_soc_mc':scaling_factor,'block_ch_oc':scaling_factor}
-                for key, factor in keys_factor.items():
-                    dummy_offer[key] = dummy_offer[key] * factor
+                dummy_offer['block_soc_mc'] = dummy_offer['block_soc_mc'] * factor
                 with open(f'offer_{self.step}.json', 'w') as f: #todo: dummy offer's name is needed
                     json.dump(dummy_offer, f, cls=NpEncoder)
 
@@ -78,15 +76,27 @@ if __name__ == "__main__":
         resource_info = json.load(f)
 
     factor = random.uniform(0.8, 1.2)
+    import csv
+
+    # Inside the if __name__ == "__main__": block
+    output_file = 'time_step_factor.csv'
+
+    # Write the header row
+    with open(output_file, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['time_step', 'factor'])
+
+        # Write the (time_step, factor) pairs
+    with open(output_file, 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow([time_step, factor])
     
     scaled_agent = Scaled_agent(time_step,market_info,resource_info)
     scaled_agent.scaling(da,factor)
 
     # Write the updated market and resource information to file
-    with open(args.market_file, 'w') as f:
+    with open(f'market_{time_step}.json', 'w') as f:
         json.dump(market_info, f, cls=NpEncoder)
-    shutil.copyfile('market.json', f'market_{time_step}.json')
-    with open(args.resource_file, 'w') as f:
+    with open(f'resource_{time_step}.json', 'w') as f:
         json.dump(resource_info, f, cls=NpEncoder)
-    shutil.copyfile('resource.json', f'resource_{time_step}.json')
     
