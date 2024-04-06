@@ -51,7 +51,7 @@ class Scaled_agent():
                     dummy_offer[key] = dummy_offer[key] * factor
                 with open(f'offer_{self.step}.json', 'w') as f: #todo: dummy offer's name is needed
                     json.dump(dummy_offer, f, cls=NpEncoder)
-        else:
+        elif 'RTM' in self.market_type:
                 keys_factor ={'block_soc_mc':scaling_factor,'block_ch_oc':scaling_factor}
                 for key, factor in keys_factor.items():
                     dummy_offer[key] = dummy_offer[key] * factor
@@ -83,10 +83,10 @@ if __name__ == "__main__":
     scaled_agent.scaling(da,factor)
 
     # Write the updated market and resource information to file
-    with open(f'market.json', 'w') as f:
+    with open(args.market_file, 'w') as f:
         json.dump(market_info, f, cls=NpEncoder)
     shutil.copyfile('market.json', f'market_{time_step}.json')
-    with open(f'resource.json', 'w') as f:
+    with open(args.resource_file, 'w') as f:
         json.dump(resource_info, f, cls=NpEncoder)
     shutil.copyfile('resource.json', f'resource_{time_step}.json')
     
