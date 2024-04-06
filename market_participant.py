@@ -66,19 +66,8 @@ class Scaled_agent():
                     dummy_offer[self.rid]['block_soc_mc'][timestamp] = scaled_value
                 elif isinstance(value, (int, float, np.int64, np.float64)):
                     dummy_offer[self.rid]['block_soc_mc'][timestamp] = value * scaling_factor
-            with open(f'offer_{self.step}.json', 'w') as f:
+            with open(f'offer_{self.step}.json', 'w') as f: 
                 json.dump(dummy_offer, f, cls=NpEncoder)
-        """ if 'DAM' in self.market_type:
-            dummy_offer["block_ch_mc"][self.rid][1:]= dummy_offer["block_ch_mc"][self.rid][1:] * scaling_factor
-            dummy_offer["block_dc_mc"][self.rid][1:]= dummy_offer["block_dc_mc"][self.rid][1:] * scaling_factor
-            
-            with open(f'offer_{self.step}.json', 'w') as f:
-                json.dump(dummy_offer, f, cls=NpEncoder)
-        elif 'RTM' in self.market_type:
-            dummy_offer[self.rid]['block_soc_mc'] = dummy_offer[self.rid]['block_soc_mc'] * scaling_factor
-            with open(f'offer_{self.step}.json', 'w') as f:
-                json.dump(dummy_offer, f, cls=NpEncoder)
-         """
 
         return dummy_offer #updated offer from scaling factor
 
