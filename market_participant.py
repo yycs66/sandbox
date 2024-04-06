@@ -11,7 +11,7 @@ import argparse
 import numpy as np
 import random
 import csv
-import shutil
+import os
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -45,31 +45,40 @@ class Scaled_agent():
 
         dummy_agent = da.Agent(time_step, market_info, resource_info)
         dummy_offer = dummy_agent.make_me_an_offer()
-        """ if 'DAM' in self.market_type:
-                for timestamp in dummy_offer[self.rid]['block_ch_oc'].items():
-                    dummy_offer[self.rid]['block_ch_oc'][timestamp] *= scaling_factor
-                for timestamp in dummy_offer[self.rid]['block_dc_oc'].items():
-                    dummy_offer[self.rid]['block_dc_oc'][timestamp] *= scaling_factor
-                with open(f'offer_{self.step}.json', 'w') as f: #todo: dummy offer's name is needed
+        
+        if 'DAM' in self.market_type:
+                for timestamp, value in dummy_offer[self.rid]['block_ch_mc'].items():
+                    if isinstance(value, (int, float, np.int64, np.float64)):
+                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = value*scaling_factor
+                    elif isinstance(value, (list, tuple, np.ndarray)):
+                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = [v * scaling_factor for v in value]
+                for timestamp, value in dummy_offer[self.rid]['block_ch_mc'].items():
+                    if isinstance(value, (int, float, np.int64, np.float64)):
+                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = value*scaling_factor
+                    elif isinstance(value, (list, tuple, np.ndarray)):
+                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = [v * scaling_factor for v in value]
+                with open(f'offer_{self.step}.json', 'w') as f: 
                     json.dump(dummy_offer, f, cls=NpEncoder)
         elif 'RTM' in self.market_type:
-                for timestamp in dummy_offer[self.rid]['block_soc_oc'].items():
-                    dummy_offer[self.rid]['block_soc_oc'][timestamp] *= scaling_factor
-                with open(f'offer_{self.step}.json', 'w') as f: #todo: dummy offer's name is needed
-                    json.dump(dummy_offer, f, cls=NpEncoder) """
-        if 'DAM' in self.market_type:
-            block_ch_oc_data = dummy_offer['timestamp']['block_ch_oc']
-            block_ch_oc_data = [x * scaling_factor for x in block_ch_oc_data]
-            block_dc_oc_data = dummy_offer['timestamp']['block_dc_oc']
-            block_dc_oc_data = [x * scaling_factor for x in block_dc_oc_data]
+            for timestamp, value in dummy_offer[self.rid]['block_soc_mc'].items():
+                if isinstance(value, (list, tuple, np.ndarray)):
+                    scaled_value = [v * scaling_factor for v in value]
+                    dummy_offer[self.rid]['block_soc_mc'][timestamp] = scaled_value
+                elif isinstance(value, (int, float, np.int64, np.float64)):
+                    dummy_offer[self.rid]['block_soc_mc'][timestamp] = value * scaling_factor
+            with open(f'offer_{self.step}.json', 'w') as f:
+                json.dump(dummy_offer, f, cls=NpEncoder)
+        """ if 'DAM' in self.market_type:
+            dummy_offer["block_ch_mc"][self.rid][1:]= dummy_offer["block_ch_mc"][self.rid][1:] * scaling_factor
+            dummy_offer["block_dc_mc"][self.rid][1:]= dummy_offer["block_dc_mc"][self.rid][1:] * scaling_factor
+            
             with open(f'offer_{self.step}.json', 'w') as f:
                 json.dump(dummy_offer, f, cls=NpEncoder)
         elif 'RTM' in self.market_type:
-            block_soc_oc_data = dummy_offer['timestamp']['block_soc_oc']
-            block_soc_oc_data = [x * scaling_factor for x in block_soc_oc_data]
+            dummy_offer[self.rid]['block_soc_mc'] = dummy_offer[self.rid]['block_soc_mc'] * scaling_factor
             with open(f'offer_{self.step}.json', 'w') as f:
                 json.dump(dummy_offer, f, cls=NpEncoder)
-        
+         """
 
         return dummy_offer #updated offer from scaling factor
 
@@ -91,15 +100,13 @@ if __name__ == "__main__":
         resource_info = json.load(f)
 
     factor = random.uniform(0.8, 1.2)
-    import csv
-
-    # Inside the if __name__ == "__main__": block
     output_file = 'time_step_factor.csv'
 
-    # Write the header row
-    with open(output_file, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['time_step', 'factor'])
+    # Write the header row if the file doesn't exist
+    if not os.path.exists(output_file):
+        with open(output_file, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['time_step', 'factor'])
 
         # Write the (time_step, factor) pairs
     with open(output_file, 'a', newline='') as csvfile:
@@ -118,4 +125,6 @@ if __name__ == "__main__":
         json.dump(resource_info, f, cls=NpEncoder)
     with open(f'resource_{time_step}.json', 'w') as f:
         json.dump(resource_info, f, cls=NpEncoder)
+    
+
     
