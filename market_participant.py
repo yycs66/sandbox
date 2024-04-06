@@ -46,13 +46,15 @@ class Scaled_agent():
         dummy_agent = da.Agent(time_step, market_info, resource_info)
         dummy_offer = dummy_agent.make_me_an_offer()
         if 'DAM' in self.market_type:
-                keys_factor ={'block_ch_mc':scaling_factor,'block_dc_oc':scaling_factor}
-                for key, factor in keys_factor.items():
-                    dummy_offer[key] = dummy_offer[key] * factor
+                for timestamp in dummy_offer[self.rid]['block_ch_oc'].items():
+                    dummy_offer[self.rid]['block_ch_oc'][timestamp] *= scaling_factor
+                for timestamp in dummy_offer[self.rid]['block_dc_oc'].items():
+                    dummy_offer[self.rid]['block_dc_oc'][timestamp] *= scaling_factor
                 with open(f'offer_{self.step}.json', 'w') as f: #todo: dummy offer's name is needed
                     json.dump(dummy_offer, f, cls=NpEncoder)
         elif 'RTM' in self.market_type:
-                dummy_offer['block_soc_mc'] = dummy_offer['block_soc_mc'] * factor
+                for timestamp in dummy_offer[self.rid]['block_soc_oc'].items():
+                    dummy_offer[self.rid]['block_soc_oc'][timestamp] *= scaling_factor
                 with open(f'offer_{self.step}.json', 'w') as f: #todo: dummy offer's name is needed
                     json.dump(dummy_offer, f, cls=NpEncoder)
 
