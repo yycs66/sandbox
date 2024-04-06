@@ -10,6 +10,8 @@ import json
 import argparse
 import numpy as np
 import random
+import csv
+import shutil
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -76,10 +78,15 @@ if __name__ == "__main__":
         resource_info = json.load(f)
 
     factor = random.uniform(0.8, 1.2)
+    
     scaled_agent = Scaled_agent(time_step,market_info,resource_info)
     scaled_agent.scaling(da,factor)
-    
-    with open(f'market_{time_step}.json', 'w') as f:
+
+    # Write the updated market and resource information to file
+    with open(f'market.json', 'w') as f:
         json.dump(market_info, f, cls=NpEncoder)
-    with open(f'resource_{time_step}.json', 'w') as f:
-        json.dump(resource_info, f, cls=NpEncoder)  
+    shutil.copyfile('market.json', f'market_{time_step}.json')
+    with open(f'resource.json', 'w') as f:
+        json.dump(resource_info, f, cls=NpEncoder)
+    shutil.copyfile('resource.json', f'resource_{time_step}.json')
+    
