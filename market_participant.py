@@ -99,7 +99,7 @@ if __name__ == "__main__":
     with open(args.resource_file, 'r') as f:
         resource_info = json.load(f)
 
-    factor = random.uniform(0.8, 1.2)
+    factor = random.uniform(0.1, 3)
     output_file = 'time_step_factor.csv'
 
     # Write the header row if the file doesn't exist
