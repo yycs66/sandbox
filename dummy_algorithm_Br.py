@@ -74,6 +74,7 @@ class Agent():
 
         # Then save the result
         self._save_json(offer, f'offer_{self.step}.json')
+        print("RT soc",offer['block_soc_mc'])
         return offer
 
     def save_from_previous(self):
