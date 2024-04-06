@@ -45,7 +45,7 @@ class Scaled_agent():
 
         dummy_agent = da.Agent(time_step, market_info, resource_info)
         dummy_offer = dummy_agent.make_me_an_offer()
-        if 'DAM' in self.market_type:
+        """ if 'DAM' in self.market_type:
                 for timestamp in dummy_offer[self.rid]['block_ch_oc'].items():
                     dummy_offer[self.rid]['block_ch_oc'][timestamp] *= scaling_factor
                 for timestamp in dummy_offer[self.rid]['block_dc_oc'].items():
@@ -56,7 +56,20 @@ class Scaled_agent():
                 for timestamp in dummy_offer[self.rid]['block_soc_oc'].items():
                     dummy_offer[self.rid]['block_soc_oc'][timestamp] *= scaling_factor
                 with open(f'offer_{self.step}.json', 'w') as f: #todo: dummy offer's name is needed
-                    json.dump(dummy_offer, f, cls=NpEncoder)
+                    json.dump(dummy_offer, f, cls=NpEncoder) """
+        if 'DAM' in self.market_type:
+            block_ch_oc_data = dummy_offer['timestamp']['block_ch_oc']
+            block_ch_oc_data = [x * scaling_factor for x in block_ch_oc_data]
+            block_dc_oc_data = dummy_offer['timestamp']['block_dc_oc']
+            block_dc_oc_data = [x * scaling_factor for x in block_dc_oc_data]
+            with open(f'offer_{self.step}.json', 'w') as f:
+                json.dump(dummy_offer, f, cls=NpEncoder)
+        elif 'RTM' in self.market_type:
+            block_soc_oc_data = dummy_offer['timestamp']['block_soc_oc']
+            block_soc_oc_data = [x * scaling_factor for x in block_soc_oc_data]
+            with open(f'offer_{self.step}.json', 'w') as f:
+                json.dump(dummy_offer, f, cls=NpEncoder)
+        
 
         return dummy_offer #updated offer from scaling factor
 
