@@ -5,7 +5,7 @@ This code will take the same inputs and provide the same outputs as a competitor
 
 import sys
 import offer_utils as ou
-import dummy_algorithm_Br as da
+import dummy_algorithm as da
 import json
 import argparse
 import numpy as np
