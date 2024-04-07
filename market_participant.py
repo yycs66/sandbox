@@ -49,18 +49,19 @@ class Scaled_agent():
         #print("lenth of timestamp is: ", len(timestamp))  
         #print("lenth of scaling factor is: ", len(scaling_factor))
         factor_action = np.hstack((timestamp, scaling_factor))
+        print("factor_action is: ", factor_action)
         factor_action_dict = dict(zip(timestamp, factor_action))
         if 'DAM' in self.market_type:
                 for timestamp, value in dummy_offer[self.rid]['block_ch_mc'].items():
                     if isinstance(value, (int, float, np.int64, np.float64)):
-                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = value * factor_action_dict[timestamp]
+                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = value * factor_action[timestamp]
                     elif isinstance(value, (list, tuple, np.ndarray)):
-                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = [v * factor_action_dict[i] for i, v in enumerate(value)]
+                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = [v * factor_action[timestamp] for v in value]
                 for timestamp, value in dummy_offer[self.rid]['block_dc_mc'].items():
                     if isinstance(value, (int, float, np.int64, np.float64)):
-                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = value * factor_action_dict[timestamp]
+                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = value * factor_action[timestamp]
                     elif isinstance(value, (list, tuple, np.ndarray)):
-                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = [v * factor_action[i] for i, v in enumerate(value)]
+                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = [v * factor_action[timestamp] for  v in value]
                 with open(f'offer_{self.step}.json', 'w') as f: 
                     json.dump(dummy_offer, f, cls=NpEncoder)
         elif 'RTM' in self.market_type:
