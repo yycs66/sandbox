@@ -487,10 +487,10 @@ class Agent():
             oc_dis = 0
         else:
             oc_dis = min(prices[j_next], prices[idx + 1] / self.efficiency) if idx == j_next - 2 else min(
-                prices[j_next], min(prices[(idx + 1):j_next]) / self.efficiency)
+                prices[j_next], min(prices[(idx + 1):j_next]) / self.efficiency) if prices[(idx + 1):j_next] else prices[j_next]
         
         oc_ch = 0 if j_prev is None or idx < j_prev + 2 else prices[idx - 1] if idx == j_prev + 2 else max(
-            max(prices[(j_prev + 1):idx]) * self.efficiency, prices[j_prev])
+            max(prices[(j_prev + 1):idx]) * self.efficiency, prices[j_prev]) if prices[(j_prev + 1):idx] else prices[j_prev]
 
         return oc_ch, oc_dis
 
