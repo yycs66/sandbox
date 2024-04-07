@@ -81,6 +81,7 @@ class Agent():
 
         # Then save the result
         self._save_json(offer, f'offer_{self.step}.json')
+        return offer
 
     def save_from_previous(self):
         # if the current market type is DAM, then we need to save it in order to run RTM
