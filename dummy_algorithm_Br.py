@@ -329,7 +329,7 @@ class Agent():
         hour_beginning = now[:10] + '00'
         type = self.market['market_type']
         bus = self.resource['bus']
-        if hour_beginning in self.market['previous'][type]['timestamp']:
+        if hour_beginning in self.market['previous'][type]['timestamp']:##todo: check if in previous dict: times or timestamps?
             prices = self.market['previous'][type]['EN'][bus]
             times = self.market['previous'][type]['timestamp']
         else:
@@ -446,7 +446,7 @@ class Agent():
         # opportunity cost during scheduled discharge
         j = max((index for index, value in enumerate(combined_list[:idx]) if value < 0), default=None)
         arr1 = 0 if idx == len(prices)-1 else prices[idx + 1] if idx == len(prices) - 2 else max(prices[(idx + 1):])
-        arr2 = 0 if j == idx - 1 else prices[j + 1] if j == idx - 2 else max(prices[(j + 1):idx])
+        arr2 = 0 if j is None or j == idx - 1 else prices[j + 1] if j == idx - 2 else max(prices[(j + 1):idx])
         #print("discharge, idx and len(prices)", j, idx, len(prices))
         oc_ch = (-prices[idx] + arr1 + arr2) * self.efficiency
         oc_dis = max(prices[j] / self.efficiency, max(prices[(j + 1):]))
