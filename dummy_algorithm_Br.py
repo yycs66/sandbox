@@ -433,7 +433,7 @@ class Agent():
             oc_dis = oc_ch + 0.01
         else:
             oc_ch_prices =np.delete(np.array(prices[0:j]), idx)
-            if oc_ch_prices.size>0
+            if oc_ch_prices.size>0:
                 oc_ch = min(oc_ch_prices.min(), self.efficiency * prices[j])
             else:
                 oc_ch = self.efficiency * prices[j]
