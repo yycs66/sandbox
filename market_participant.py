@@ -13,6 +13,7 @@ import pandas as pd
 import random
 import csv
 import os
+import openpyxl
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -100,25 +101,26 @@ if __name__ == "__main__":
 
     #factor = random.uniform(0.1, 3)
     factors = np.random.normal(loc=1, scale=0.5, size=36)
+    # Create a DataFrame
+    df_factors = pd.DataFrame([factors], columns=[f'factor_{i}' for i in range(1, 37)])
+    df_factors.insert(0, 'time_step', list(range(1, 37)))
+    # Convert DataFrame to a dictionary
+    data = df_factors.to_dict('records')
+
+    # Write the data to a JSON file
+    output_file = 'time_step_factor.json'
+    with open(output_file, 'w') as f:
+        json.dump(data, f, indent=2)
+
+    """ this one is to write excel file
     output_file = 'time_step_factor.xlsx'
     # Create a DataFrame
     df_factors = pd.DataFrame([factors], columns=[f'factor_{i}' for i in range(1, 37)])
     df_factors.insert(0, 'time_step', time_step)
     # Write the DataFrame to an Excel file
-    df_factors.to_excel(output_file, index=False)
+    df_factors.to_excel(output_file, index=False) """
 
-    """ # Write the header row if the file doesn't exist
-    if not os.path.exists(output_file):
-        with open(output_file, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            #writer
-            writer.writerow(['time_step'] + [f'factor_{i}' for i in range(1, 37)])
 
-        # Write the (time_step, factor) pairs
-    with open(output_file, 'a', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        #writer.writerow([time_step, factor])
-        writer.writerow(['time_step'] + [f'factor_{i}' for i in range(1, 37)]) """
     
     scaled_agent = Scaled_agent(time_step,market_info,resource_info)
     scaled_agent.scaling(da,factors)
