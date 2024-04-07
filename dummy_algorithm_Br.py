@@ -180,10 +180,11 @@ class Agent():
         t_end = self.market['timestamps'][-1]
         for t_now in self.market['timestamps']:
             en_ledger = {t:order for t,order in self.resource['ledger'][self.rid]['EN'].items() if t >= t_now}
-            block_ch_mq[t_now] = []
-            block_ch_mc[t_now] = []
-            block_dc_mq[t_now] = []
-            block_dc_mc[t_now] = []
+            if en_ledger:
+                block_ch_mq[t_now] = []
+                block_ch_mc[t_now] = []
+                block_dc_mq[t_now] = []
+                block_dc_mc[t_now] = []
 
             # add blocks for cost of current dispatch:
             if t_now in en_ledger.keys():
