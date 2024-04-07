@@ -101,16 +101,13 @@ if __name__ == "__main__":
 
     #factor = random.uniform(0.1, 3)
     factors = np.random.normal(loc=1, scale=0.5, size=36)
-    # Create a DataFrame
-    df_factors = pd.DataFrame([factors], columns=[f'factor_{i}' for i in range(1, 37)])
-    df_factors.insert(0, 'time_step', list(range(1, 37)))
-    # Convert DataFrame to a dictionary
-    data = df_factors.to_dict('records')
+    # Create the data dictionary
+    data_factor = {f"time_step_{time_step}": [float(factor) for factor in factors]}
 
     # Write the data to a JSON file
     output_file = 'time_step_factor.json'
     with open(output_file, 'w') as f:
-        json.dump(data, f, indent=2)
+        json.dump(data_factor, f, indent=2)
 
     """ this one is to write excel file
     output_file = 'time_step_factor.xlsx'
