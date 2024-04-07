@@ -46,18 +46,20 @@ class Scaled_agent():
         dummy_agent = da.Agent(time_step, market_info, resource_info)
         dummy_offer = dummy_agent.make_me_an_offer()
         timestamp = list(dummy_offer[self.rid]['block_ch_mc'].keys())
+        print("lenth of timestamp is: ", len(timestamp))  
+        print("lenth of scaling factor is: ", len(scaling_factor))
         factor_action = np.hstack((timestamp, scaling_factor))
         if 'DAM' in self.market_type:
                 for timestamp, value in dummy_offer[self.rid]['block_ch_mc'].items():
                     if isinstance(value, (int, float, np.int64, np.float64)):
                         dummy_offer[self.rid]['block_ch_mc'][timestamp] = value * factor_action[timestamp]
                     elif isinstance(value, (list, tuple, np.ndarray)):
-                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = [v * factor_action[timestamp] for v in value]
-                for timestamp, value in dummy_offer[self.rid]['block_ch_mc'].items():
+                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = [v * factor_action[i] for i, v in enumerate(value)]
+                for timestamp, value in dummy_offer[self.rid]['block_dc_mc'].items():
                     if isinstance(value, (int, float, np.int64, np.float64)):
-                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = value*factor_action[timestamp]
+                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = value * factor_action[timestamp]
                     elif isinstance(value, (list, tuple, np.ndarray)):
-                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = [v * factor_action[timestamp] for v in value]
+                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = [v * factor_action[i] for i, v in enumerate(value)]
                 with open(f'offer_{self.step}.json', 'w') as f: 
                     json.dump(dummy_offer, f, cls=NpEncoder)
         elif 'RTM' in self.market_type:
