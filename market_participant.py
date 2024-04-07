@@ -45,18 +45,19 @@ class Scaled_agent():
 
         dummy_agent = da.Agent(time_step, market_info, resource_info)
         dummy_offer = dummy_agent.make_me_an_offer()
-        
+        timestamp = list(dummy_offer[self.rid]['block_ch_mc'].keys())
+        factor_action = np.hstack((timestamp, scaling_factor))
         if 'DAM' in self.market_type:
                 for timestamp, value in dummy_offer[self.rid]['block_ch_mc'].items():
                     if isinstance(value, (int, float, np.int64, np.float64)):
-                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = value*scaling_factor
+                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = value * factor_action[timestamp]
                     elif isinstance(value, (list, tuple, np.ndarray)):
-                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = [v * scaling_factor for v in value]
+                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = [v * factor_action[timestamp] for v in value]
                 for timestamp, value in dummy_offer[self.rid]['block_ch_mc'].items():
                     if isinstance(value, (int, float, np.int64, np.float64)):
-                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = value*scaling_factor
+                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = value*factor_action[timestamp]
                     elif isinstance(value, (list, tuple, np.ndarray)):
-                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = [v * scaling_factor for v in value]
+                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = [v * factor_action[timestamp] for v in value]
                 with open(f'offer_{self.step}.json', 'w') as f: 
                     json.dump(dummy_offer, f, cls=NpEncoder)
         elif 'RTM' in self.market_type:
@@ -85,22 +86,31 @@ if __name__ == "__main__":
     time_step = args.time_step
     with open(args.market_file, 'r') as f:
         market_info = json.load(f)
+    """ with open(f'market_0.json', 'w') as f:
+        json.dump(market_info, f, cls=NpEncoder) """
     with open(args.resource_file, 'r') as f:
         resource_info = json.load(f)
+    """ with open(f'resource_0.json', 'w') as f:
+        json.dump(resource_info, f, cls=NpEncoder) """
 
-    factor = random.uniform(0.1, 3)
+    #factor = random.uniform(0.1, 3)
+    factors = np.random.normal(loc=1, scale=0.5, size=36)
     output_file = 'time_step_factor.csv'
 
     # Write the header row if the file doesn't exist
     if not os.path.exists(output_file):
         with open(output_file, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['time_step', 'factor'])
+            #writer
+            for time_step, factor in enumerate(factors):
+                writer.writerow([time_step, factor])
 
         # Write the (time_step, factor) pairs
     with open(output_file, 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow([time_step, factor])
+        #writer.writerow([time_step, factor])
+        for time_step, factor in enumerate(factors):
+            writer.writerow([time_step, factor])
     
     scaled_agent = Scaled_agent(time_step,market_info,resource_info)
     scaled_agent.scaling(da,factor)
