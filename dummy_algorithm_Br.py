@@ -424,6 +424,9 @@ class Agent():
                 arr2 = prices[idx + 1]
             else:
                 arr2 = min(prices[(idx + 1):j])
+
+        if arr2 is None:
+            arr2 = 0  # Assign a default value to arr2 if it is None
         if idx == 0:
             oc_ch_prices = prices[1:j]
             if oc_ch_prices:
@@ -450,7 +453,7 @@ class Agent():
         arr2 = 0 if j is None or j == idx - 1 else prices[j + 1] if j == idx - 2 else max(prices[(j + 1):idx])
         #print("discharge, idx and len(prices)", j, idx, len(prices))
         oc_ch = (-prices[idx] + arr1 + arr2) * self.efficiency
-        oc_dis = max(prices[j] / self.efficiency, max(prices[(j + 1):]))
+        oc_dis = max(prices[j] / self.efficiency, max(prices[(j + 1):])) if j is not None else 0
 
         return oc_ch, oc_dis
 
@@ -477,13 +480,17 @@ class Agent():
         return oc_ch, oc_dis
 
     def _calc_oc_between_cycles(self, combined_list, prices, idx):
-        j_next = idx + 1 + next((index for index, value in enumerate(combined_list[idx + 1:]) if value > 0),None)
+        j_next = idx + 1 + next((index for index, value in enumerate(combined_list[idx + 1:]) if value > 0), None)
         j_prev = max((index for index, value in enumerate(combined_list[:idx]) if value < 0), default=None)
-        oc_ch = 0 if idx < j_prev + 2 else prices[idx - 1] if idx == j_prev + 2 else max(
+        
+        if j_next is None:
+            oc_dis = 0
+        else:
+            oc_dis = min(prices[j_next], prices[idx + 1] / self.efficiency) if idx == j_next - 2 else min(
+                prices[j_next], min(prices[(idx + 1):j_next]) / self.efficiency)
+        
+        oc_ch = 0 if j_prev is None or idx < j_prev + 2 else prices[idx - 1] if idx == j_prev + 2 else max(
             max(prices[(j_prev + 1):idx]) * self.efficiency, prices[j_prev])
-        oc_dis = 0 if idx > j_next - 2 else min(prices[j_next],
-                                              prices[idx + 1] / self.efficiency) if idx == j_next - 2 else min(
-            prices[j_next], min(prices[(idx + 1):j_next]) / self.efficiency)
 
         return oc_ch, oc_dis
 
