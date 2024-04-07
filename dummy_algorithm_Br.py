@@ -400,9 +400,9 @@ class Agent():
 
         # marginal cost comes from opportunity cost calculation
         charge_mq, discharge_mq = self._scheduler(prices)
-        print("charge_mq and dicharge_mq", charge_mq, discharge_mq)
+        #print("charge_mq and dicharge_mq", charge_mq, discharge_mq)
         charge_mc, discharge_mc = self._calculate_opportunity_costs(prices, charge_mq, discharge_mq)
-        print("charge_mc and dicharge_mc", charge_mc, discharge_mc)
+        #print("charge_mc and dicharge_mc", charge_mc, discharge_mc)
         # self.charge_mc = oc['charge cost'].values
         # self.discharge_mc = oc['disch cost'].values
         self.charge_mc = charge_mc
@@ -500,7 +500,7 @@ class Agent():
         charge = [solver.NumVar(0.0, self.chmax, "c"+str(i)) for i in range(number_step)]
         discharge = [solver.NumVar(0, self.dcmax,  "d"+str(i)) for i in range(number_step)]
         dasoc = [solver.NumVar(0.0, self.socmax, "b"+str(i)) for i in range(number_step+1)]
-        dasoc[0]=0
+        dasoc[0]=socmin
 
         #Objective function
         solver.Minimize(
