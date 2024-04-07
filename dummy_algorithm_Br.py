@@ -424,11 +424,19 @@ class Agent():
             else:
                 arr2 = min(prices[(idx + 1):j])
         if idx == 0:
-            oc_ch = min(min(prices[1:j]), self.efficiency * prices[j])
+            oc_ch_prices = prices[1:j]
+            if oc_ch_prices:
+                oc_ch = min(min(oc_ch_prices), self.efficiency * prices[j])
+            else:
+                oc_ch = self.efficiency * prices[j]
             arr1 = prices[0]
             oc_dis = oc_ch + 0.01
         else:
-            oc_ch = min(np.delete(np.array(prices[0:j]), idx).min(), self.efficiency * prices[j])
+            oc_ch_prices =np.delete(np.array(prices[0:j]), idx)
+            if oc_ch_prices.size>0
+                oc_ch = min(oc_ch_prices.min(), self.efficiency * prices[j])
+            else:
+                oc_ch = self.efficiency * prices[j]
             arr1 = min(prices[0:idx])
             oc_dis = (-prices[idx] + arr1 + arr2) / self.efficiency
 
@@ -455,9 +463,14 @@ class Agent():
 
     def _calc_oc_after_last_discharge(self, prices, t_last, idx):
         # opportunity cost after last discharge
-        oc_ch = max(prices[(idx + 1):]) * self.efficiency if idx < len(prices) - 2 else prices[idx + 1] if idx == len(
-            prices) - 2 else min(prices)
-        arr = prices[idx - 1] if idx == t_last + 2 else min(prices[(t_last + 1):idx]) if idx > t_last + 2 else max(prices)
+        oc_ch = max(prices[(idx + 1):]) * self.efficiency if idx < len(prices) - 2 else prices[idx + 1] if idx == len(prices) - 2 else min(prices) if prices else 0
+        
+        if idx > t_last + 2:
+            arr_prices = prices[(t_last + 1):idx]
+            arr = min(arr_prices) if arr_prices else max(prices)
+        else:
+            arr = prices[idx - 1] if idx == t_last + 2 else max(prices)
+        
         oc_dis = min(prices[t_last], arr / self.efficiency)
 
         return oc_ch, oc_dis
