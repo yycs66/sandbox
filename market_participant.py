@@ -54,23 +54,23 @@ class Scaled_agent():
         if 'DAM' in self.market_type:
                 for timestamp, value in dummy_offer[self.rid]['block_ch_mc'].items():
                     if isinstance(value, (int, float, np.int64, np.float64)):
-                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = value * factor_action[timestamp]
+                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = value * factor_action_dict[timestamp]
                     elif isinstance(value, (list, tuple, np.ndarray)):
-                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = [v * factor_action[timestamp] for v in value]
+                        dummy_offer[self.rid]['block_ch_mc'][timestamp] = [v * factor_action_dict[timestamp] for v in value]
                 for timestamp, value in dummy_offer[self.rid]['block_dc_mc'].items():
                     if isinstance(value, (int, float, np.int64, np.float64)):
-                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = value * factor_action[timestamp]
+                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = value * factor_action_dict[timestamp]
                     elif isinstance(value, (list, tuple, np.ndarray)):
-                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = [v * factor_action[timestamp] for  v in value]
+                        dummy_offer[self.rid]['block_dc_mc'][timestamp] = [v * factor_action_dict[timestamp] for  v in value]
                 with open(f'offer_{self.step}.json', 'w') as f: 
                     json.dump(dummy_offer, f, cls=NpEncoder)
         elif 'RTM' in self.market_type:
             for timestamp, value in dummy_offer[self.rid]['block_soc_mc'].items():
                 if isinstance(value, (list, tuple, np.ndarray)):
-                    scaled_value = [v * scaling_factor for v in value]
+                    scaled_value = [v * factor_action_dict[timestamp] for v in value]
                     dummy_offer[self.rid]['block_soc_mc'][timestamp] = scaled_value
                 elif isinstance(value, (int, float, np.int64, np.float64)):
-                    dummy_offer[self.rid]['block_soc_mc'][timestamp] = value * scaling_factor
+                    dummy_offer[self.rid]['block_soc_mc'][timestamp] = value * factor_action_dict[timestamp]
             with open(f'offer_{self.step}.json', 'w') as f: 
                 json.dump(dummy_offer, f, cls=NpEncoder)
 
@@ -117,7 +117,7 @@ if __name__ == "__main__":
             writer.writerow([time_step, factor])
     
     scaled_agent = Scaled_agent(time_step,market_info,resource_info)
-    scaled_agent.scaling(da,factor)
+    scaled_agent.scaling(da,factors)
 
     # Write the updated market and resource information to file
     with open(args.market_file, 'w') as f:
