@@ -36,6 +36,7 @@ class Agent():
     - make_me_an_offer() reads the market type and saves to disc a JSON file containing offer data
     '''
 
+    
     def __init__(self, time_step, market_info, resource_info):
         # Data input from WEASLE
         self.step = time_step
@@ -84,8 +85,8 @@ class Agent():
     def _day_ahead_offer(self):
         # Make the offer curves and unload into arrays
         type = self.market['market_type']
-        # bus = self.resource['bus'] #TODO: switch when this is updated
-        bus = 'NEVP'
+        bus = self.resource['bus'] #TODO: switch when this is updated
+        #bus = 'NEVP'
         prices = self.market["previous"][type]["prices"]["EN"][bus]
         self._calculate_offer_curve(prices)
         self._descretize_offer_curves()
@@ -120,7 +121,7 @@ class Agent():
         # estimate initial SoC for tomorrow's DAM
         t_init = datetime.datetime.strptime(self.market['timestamps'][0],'%Y%m%d%H%M')
         t_now = datetime.datetime.strptime(self.market['current_time'],'%Y%m%d%H%M') # update to new market_data
-        #t_now = datetime.datetime.strptime(self.market['current_time'][5:],'%Y%m%d%H%M')# current_time: TSTDM2021...
+        
         t_init = t_init.strftime('%Y%m%d%H%M')
         t_now = t_now.strftime('%Y%m%d%H%M')
         if self.resource['schedule'].keys():
