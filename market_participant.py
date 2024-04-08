@@ -50,9 +50,8 @@ class Scaled_agent():
         timestamp = list(dummy_offer[self.rid]['block_ch_mc'].keys())
         #print("lenth of timestamp is: ", len(timestamp))  
         #print("lenth of scaling factor is: ", len(scaling_factor))
-        factor_action = np.hstack((timestamp, scaling_factor))
-        print("factor_action is: ", factor_action)
-        factor_action_dict = dict(zip(timestamp, factor_action))
+        #factor_action = np.hstack((timestamp, scaling_factor))
+        factor_action_dict = dict(zip(timestamp, scaling_factor))
         if 'DAM' in self.market_type:
                 for timestamp, value in dummy_offer[self.rid]['block_ch_mc'].items():
                     if isinstance(value, (int, float, np.int64, np.float64)):
@@ -92,22 +91,28 @@ if __name__ == "__main__":
     time_step = args.time_step
     with open(args.market_file, 'r') as f:
         market_info = json.load(f)
-    """ with open(f'market_0.json', 'w') as f:
-        json.dump(market_info, f, cls=NpEncoder) """
+    with open(f'market_{time_step-1}.json', 'w') as f:
+        json.dump(market_info, f, cls=NpEncoder) 
     with open(args.resource_file, 'r') as f:
         resource_info = json.load(f)
-    """ with open(f'resource_0.json', 'w') as f:
-        json.dump(resource_info, f, cls=NpEncoder) """
+    with open(f'resource_{time_step-1}.json', 'w') as f:
+        json.dump(resource_info, f, cls=NpEncoder)
 
     #factor = random.uniform(0.1, 3)
-    factors = np.random.normal(loc=1, scale=0.5, size=36)
+    factors = np.random.uniform(0.1, 3, 36)
     # Create the data dictionary
-    data_factor = {f"time_step_{time_step}": [float(factor) for factor in factors]}
+    savefile = 'time_step_factor.csv'
+
+    with open(savefile, 'a') as file:
+        writer = csv.writer(file)
+        writer.writerow(factors)
+
+    """ data_factor = {f"time_step_{time_step}": [float(factor) for factor in factors]}
 
     # Write the data to a JSON file
     output_file = 'time_step_factor.json'
-    with open(output_file, 'w') as f:
-        json.dump(data_factor, f, indent=2)
+    with open(output_file, 'a') as f:
+        json.dump(data_factor, f, indent=2) """
 
     """ this one is to write excel file
     output_file = 'time_step_factor.xlsx'
@@ -125,12 +130,12 @@ if __name__ == "__main__":
     # Write the updated market and resource information to file
     with open(args.market_file, 'w') as f:
         json.dump(market_info, f, cls=NpEncoder)
-    with open(f'market_{time_step}.json', 'w') as f:
-        json.dump(market_info, f, cls=NpEncoder)
+    """ with open(f'market_{time_step}.json', 'w') as f:
+        json.dump(market_info, f, cls=NpEncoder) """
     with open(args.resource_file, 'w') as f:
         json.dump(resource_info, f, cls=NpEncoder)
-    with open(f'resource_{time_step}.json', 'w') as f:
-        json.dump(resource_info, f, cls=NpEncoder)
+"""     with open(f'resource_{time_step}.json', 'w') as f:
+        json.dump(resource_info, f, cls=NpEncoder) """
     
 
     
