@@ -179,7 +179,10 @@ class Agent():
 
         t_end = self.market['timestamps'][-1]
         for t_now in self.market['timestamps']:
-            en_ledger = {t:order for t,order in self.resource['ledger'][self.rid]['EN'].items() if t >= t_now}
+            if self.resource['ledger'][self.rid]['EN']:
+                en_ledger = {t:order for t,order in self.resource['ledger'][self.rid]['EN'].items() if t >= t_now}
+            else:
+                en_ledger = None
             if en_ledger:
                 block_ch_mq[t_now] = []
                 block_ch_mc[t_now] = []
