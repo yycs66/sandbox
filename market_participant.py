@@ -236,7 +236,7 @@ class EnergyEnvironment:
                 next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data]
                 next_state = pd.to_numeric(next_state)
             else:
-                next_state = np.zeros_like(state)  
+                next_state = np.zeros(5)  
                 done = True  # Set done to True if self.current_step exceeds the valid range
         
         reward = self.calculate_reward(action)
@@ -398,7 +398,7 @@ if __name__ == "__main__":
             scaled_agent = Scaled_agent(time_step, market_info, resource_info)
             scaled_agent.scaling(da, factors)
 
-            next_state, done = env.step()
+            next_state, reward, done = env.step()
             
             # Estimate the reward based on the action taken
             reward = env.calculate_reward(action)  # Calculate the reward
