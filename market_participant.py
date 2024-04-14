@@ -216,7 +216,7 @@ class EnergyEnvironment:
                 next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data]
                 next_state = pd.to_numeric(next_state)
             else:
-                next_state = np.zeros(5)  
+                next_state = pd.DataFrame(np.zeros((1, 5)), columns=['price', 'solar', 'wind', 'load', 'soc']) 
                 done = True  # Set done to True if self.current_step exceeds the valid range
         
             """ # Get the next state values
