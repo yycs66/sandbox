@@ -112,6 +112,7 @@ class EnergyEnvironment:
         with open(resource_filename, 'r') as file:
             resource_data = json.load(file)
         self.rid = resource_info['rid']
+        self.bus = resource_info['bus']
         
         self.price_forecast = pd.DataFrame.from_dict(market_data['previous'][market_type]['prices']['EN'][self.bus]) if 'EN' in market_data['previous'][market_type]['prices'] else pd.DataFrame.from_dict(market_data['forecast'][market_type]['prices']['EN'][self.bus])
         self.solar_data = pd.DataFrame.from_dict(market_data['forecast']['solar']) if 'solar' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['solar'])
