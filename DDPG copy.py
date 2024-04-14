@@ -190,7 +190,7 @@ class EnergyEnvironment:
         
         return next_state, reward, done
     def calculate_reward(self, action):
-        dummy_offer = da.Agent(self.episode, market_info, resource_info).make_me_an_offer()
+        combined_ch_mc_data = pd.read_csv("train_data/combined_ch_mc.csv")
         
         if 'DAM' in self.market_type:
             steps = min(24, self.max_steps - self.current_step)
