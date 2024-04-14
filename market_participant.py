@@ -162,12 +162,17 @@ class EnergyEnvironment:
                 price_forecast = self.price_forecast.iloc[self.current_step + step, :].tolist()
                 block_ch_mc = dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step + step}"]
                 block_ch_mq = dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step + step}"]
-                reward += np.sum((price_forecast - action * block_ch_mc) * block_ch_mq)
+                block_dc_mc = dummy_offer[self.rid]['block_dc_mc'][f"{self.current_step + step}"]
+                block_dc_mq = dummy_offer[self.rid]['block_dc_mq'][f"{self.current_step + step}"]
+                
+                reward += np.sum((abs(action * block_ch_mc) - price_forecast) * block_ch_mq +
+                                (price_forecast - abs(action * block_dc_mc) - price_forecast) * block_dc_mq)
         elif 'RTM' in self.market_type:
             price_forecast = self.price_forecast.iloc[self.current_step, :].tolist()
-            block_ch_mc = dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step}"]
-            block_ch_mq = dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step}"]
-            reward = np.sum((price_forecast - action * block_ch_mc) * block_ch_mq)
+            block_soc_mc = dummy_offer[self.rid]['block_soc_mc'][f"{self.current_step}"]
+            block_soc_mq = dummy_offer[self.rid]['block_soc_mq'][f"{self.current_step}"]
+            
+            reward = np.sum( (price_forecast - abs(action * block_soc_mc)) * block_soc_mq)
         
         return reward
     
