@@ -65,7 +65,7 @@ class Scaled_agent():
 
 # Define Actor Network
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim, action_bound, hidden_dim=(256, 128)):
+    def __init__(self, state_dim, action_dim, action_bound, hidden_dim):
         super(Actor, self).__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim[0])
         self.fc2 = nn.Linear(hidden_dim[0], hidden_dim[1])
@@ -81,10 +81,17 @@ class Actor(nn.Module):
 
 # Define DDPG Agent
 class DDPGAgent:
-    def __init__(self, state_dim, action_dim, action_bound, hidden_dim=(256, 128)):
+    def __init__(self, state_dim, action_dim, action_bound,hidden_dim, buffer_size, 
+                 learning_rate,batch_size, gamma, tau):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.action_bound = action_bound
+        self.batch_size = batch_size
+        self.gamma = gamma
+        self.hidden_dim = hidden_dim
+        self.lr = learning_rate  
+        self.tau = tau
+        self.buffersize = buffer_size
         self.actor = Actor(state_dim, action_dim, action_bound, hidden_dim)
         self.actor.load_state_dict(torch.load('actor_model.pth'))
         self.actor.eval()
@@ -118,14 +125,6 @@ class EnergyEnvironment:
         self.solar_data = pd.DataFrame.from_dict(market_data['forecast']['solar']) if 'solar' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['solar'])
         self.wind_data = pd.DataFrame.from_dict(market_data['forecast']['wind']) if 'wind' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['wind'])
         self.load_data = pd.DataFrame.from_dict(market_data['forecast']['load']) if 'load' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['load'])
-        """ if 'soc' in resource_data['status'][self.rid]:
-            soc_data = resource_data['status'][self.rid]['soc']
-            if isinstance(soc_data, dict):
-                self.soc = pd.DataFrame.from_dict(soc_data)
-            elif isinstance(soc_data, (list, np.ndarray)):
-                self.soc = pd.DataFrame(soc_data)
-            else:
-                raise ValueError("Unsupported data type for 'soc' in resource_data['status']") """
         self.max_steps = self.price_forecast.shape[0]
         
     def reset(self):
@@ -134,15 +133,27 @@ class EnergyEnvironment:
         return state
     
     def step(self, action):
-        done = self.current_step + 1 >= self.max_steps
+        # Update the state based on the action taken
+       
+        # Check if the episode is done
+        done = self.current_step +1 >= self.max_steps
         
         if not done:
             self.current_step += 1
-            next_state = self.get_state()
-        else:
-            next_state = np.zeros_like(state)
+            action = self.action_data.iloc[self.episode, self.current_step]
         
-        return next_state, done
+            next_state = [self.price_forecast.iloc[self.episode,self.current_step ],
+                          self.solar_data.iloc[self.episode,self.current_step],
+                          self.wind_data.iloc[self.episode,self.current_step],
+                          self.load_data.iloc[self.episode,self.current_step],
+                          self.soc_data.iloc[self.episode,self.current_step]]
+            next_state = pd.to_numeric(next_state)
+            
+        else:
+            next_state = np.zeros_like(state)  # Placeholder for terminal state
+        reward = self.calculate_reward(action)
+        
+        return next_state, reward, done
     
     def get_state(self):
         resource_filename = f'resource_{self.episode-1}.json'
@@ -171,20 +182,25 @@ class EnergyEnvironment:
             steps = min(24, self.max_steps - self.current_step)
             reward = 0
             for step in range(steps):
+                action_step = torch.tensor(action_data.iloc[self.episode, self.current_step], dtype=torch.float32)
                 price_forecast = self.price_forecast.iloc[self.current_step + step, :].tolist()
-                block_ch_mc = get_average(dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step + step}"])
-                block_ch_mq = get_average(dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step + step}"])
-                block_dc_mc = get_average(dummy_offer[self.rid]['block_dc_mc'][f"{self.current_step + step}"])
-                block_dc_mq = get_average(dummy_offer[self.rid]['block_dc_mq'][f"{self.current_step + step}"])
+                ch_mc = get_average(dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step + step}"])
+                ch_mq = get_average(dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step + step}"])
+                dc_mc = get_average(dummy_offer[self.rid]['block_dc_mc'][f"{self.current_step + step}"])
+                dc_mq = get_average(dummy_offer[self.rid]['block_dc_mq'][f"{self.current_step + step}"])
                 
-                reward += np.sum((abs(action * block_ch_mc) - price_forecast) * block_ch_mq +
-                                (price_forecast - abs(action * block_dc_mc) - price_forecast) * block_dc_mq)
+                ch_reward = np.array(ch_mq * (price_forecast - abs((action_step-1) * ch_mc)), dtype=np.float32)
+                dc_reward = np.array(dc_mq * (price_forecast - abs((1-action_step * dc_mc))), dtype=np.float32)
+                reward = dc_reward - ch_reward
         elif 'RTM' in self.market_type:
             price_forecast = self.price_forecast.iloc[self.current_step, :].tolist()
-            block_soc_mc = get_average(dummy_offer[self.rid]['block_soc_mc'][f"{self.current_step}"]) if f"{self.current_step}" in dummy_offer[self.rid]['block_soc_mc'] else 0
-            block_soc_mq = get_average(dummy_offer[self.rid]['block_soc_mq'][f"{self.current_step}"]) if f"{self.current_step}" in dummy_offer[self.rid]['block_soc_mq'] else 0
-            
-            reward = np.sum((price_forecast - abs(action * block_soc_mc)) * block_soc_mq)
+            soc_mc = get_average(dummy_offer[self.rid]['block_soc_mc'][f"{self.current_step}"]) if f"{self.current_step}" in dummy_offer[self.rid]['block_soc_mc'] else 0
+            soc_mq = get_average(dummy_offer[self.rid]['block_soc_mq'][f"{self.current_step}"]) if f"{self.current_step}" in dummy_offer[self.rid]['block_soc_mq'] else 0
+            soc_reward = np.array(soc_mq * (price_forecast - abs((1-action_step) * soc_mc)), dtype=np.float32)
+            reward = soc_reward
+        return reward
+    def set_episode(self, episode):
+        self.episode = episode
 
     
 if __name__ == "__main__":
@@ -213,8 +229,16 @@ if __name__ == "__main__":
     action_bound = 3.0
 
     # Initialize DDPG agent with the best hyperparameters
-    hidden_dim = (256, 128)  # Replace with the best hyperparameters found during tuning
-    agent = DDPGAgent(state_dim=state_dim, action_dim=action_dim, action_bound=action_bound, hidden_dim=hidden_dim)
+    learning_rate = 0.001
+    hidden_dim=(256,128)
+    buffer_size=int(1e5) 
+    batch_size=64 
+    gamma=0.99
+    tau=0.001
+    agent = DDPGAgent(state_dim=state_dim, learning_rate=learning_rate,hidden_dim=hidden_dim,
+                  buffer_size=buffer_size,batch_size=batch_size, gamma=gamma,
+                   tau=tau, action_dim=action_dim, action_bound=action_bound)
+
 
     # Initialize variables
     total_reward = 0
