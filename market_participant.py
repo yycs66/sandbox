@@ -246,24 +246,31 @@ class EnergyEnvironment:
         
         
         if 'DAM' in self.market_type:
-            steps = min(24, self.max_steps - self.current_step)
             reward = 0
-            for step in range(steps):
-                action_step = action[self.current_step + step]  # Use the action value for the current step
-                price_forecast = self.price_forecast.iloc[self.current_step + step, 0]
-                ch_mc = get_average(dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step + step}"])
-                ch_mq = get_average(dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step + step}"])
-                dc_mc = get_average(dummy_offer[self.rid]['block_dc_mc'][f"{self.current_step + step}"])
-                dc_mq = get_average(dummy_offer[self.rid]['block_dc_mq'][f"{self.current_step + step}"])
-                
-                ch_reward = np.array(ch_mq * (price_forecast - abs((action_step-1) * ch_mc)), dtype=np.float32)
-                dc_reward = np.array(dc_mq * (price_forecast - abs((1-action_step * dc_mc))), dtype=np.float32)
-                reward += dc_reward - ch_reward
+            timestamps = list(dummy_offer[self.rid]['block_ch_mc'].keys())
+            for i in range(len(timestamps)):
+                current_timestamp = timestamps[i]
+                if i >= self.current_step and i < self.current_step + 24:
+                    action_step = action[i - self.current_step]  # Use the action value for the current step
+                    price_forecast = self.price_forecast.iloc[i, 0]
+                    ch_mc = get_average(dummy_offer[self.rid]['block_ch_mc'][current_timestamp])
+                    ch_mq = get_average(dummy_offer[self.rid]['block_ch_mq'][current_timestamp])
+                    dc_mc = get_average(dummy_offer[self.rid]['block_dc_mc'][current_timestamp])
+                    dc_mq = get_average(dummy_offer[self.rid]['block_dc_mq'][current_timestamp])
+                    soc_mc = get_average(dummy_offer[self.rid]['block_soc_mc'][current_timestamp])
+                    soc_mq = get_average(dummy_offer[self.rid]['block_soc_mq'][current_timestamp])
+                    ch_reward = np.array(ch_mq * (price_forecast - abs((action_step-1) * ch_mc)), dtype=np.float32)
+                    dc_reward = np.array(dc_mq * (price_forecast - abs((1-action_step * dc_mc))), dtype=np.float32)
+                    soc_reward = np.array(soc_mq * (price_forecast - abs((1-action_step) * soc_mc)), dtype=np.float32)
+                    alpha=0.6
+                    reward = alpha*(dc_reward - ch_reward) +(1-alpha)
         elif 'RTM' in self.market_type:
+            timestamps = list(dummy_offer[self.rid]['block_soc_mc'].keys())
+            current_timestamp = timestamps[self.current_step]
             price_forecast = self.price_forecast.iloc[self.current_step, 0]
-            soc_mc = get_average(dummy_offer[self.rid]['block_soc_mc'][f"{self.current_step}"]) if f"{self.current_step}" in dummy_offer[self.rid]['block_soc_mc'] else 0
-            soc_mq = get_average(dummy_offer[self.rid]['block_soc_mq'][f"{self.current_step}"]) if f"{self.current_step}" in dummy_offer[self.rid]['block_soc_mq'] else 0
-            action_step = action[self.current_step]  # Use the action value for the current step
+            soc_mc = get_average(dummy_offer[self.rid]['block_soc_mc'][current_timestamp]) if current_timestamp in dummy_offer[self.rid]['block_soc_mc'] else 0
+            soc_mq = get_average(dummy_offer[self.rid]['block_soc_mq'][current_timestamp]) if current_timestamp in dummy_offer[self.rid]['block_soc_mq'] else 0
+            action_step = action[0]  # Use the action value for the current step
             soc_reward = np.array(soc_mq * (price_forecast - abs((1-action_step) * soc_mc)), dtype=np.float32)
             reward = soc_reward
         return reward
