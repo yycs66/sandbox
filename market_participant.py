@@ -398,7 +398,7 @@ if __name__ == "__main__":
             scaled_agent = Scaled_agent(time_step, market_info, resource_info)
             scaled_agent.scaling(da, factors)
 
-            next_state, done = env.step(factors)
+            next_state, done = env.step()
             
             # Estimate the reward based on the action taken
             reward = env.calculate_reward(action)  # Calculate the reward
