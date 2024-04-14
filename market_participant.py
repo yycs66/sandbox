@@ -200,7 +200,7 @@ class EnergyEnvironment:
                     self.solar_data.iloc[self.current_step, 0],
                       self.wind_data.iloc[self.current_step, 0],
                       self.load_data.iloc[self.current_step, 0],
-                      self.soc_data.iloc[self.episode, self.current_step]]
+                      self.get_soc()]
                 next_state = pd.to_numeric(next_state)
             """ next_state = [self.price_forecast.iloc[self.episode,self.current_step ],
                           self.solar_data.iloc[self.episode,self.current_step],
@@ -208,7 +208,8 @@ class EnergyEnvironment:
                           self.load_data.iloc[self.episode,self.current_step],
                           self.soc_data.iloc[self.episode,self.current_step]] """  
         else:
-            next_state =  np.zeros_like(state)  # Placeholder for terminal state
+            next_state =  np.zeros_like(state)  
+            done = True
         reward = self.calculate_reward(action)
         
         return next_state, reward, done
@@ -228,6 +229,13 @@ class EnergyEnvironment:
                  soc]
         state = pd.to_numeric(state)
         return state
+    def get_soc(self):
+        resource_filename = f'resource_{self.episode-1}.json'
+        with open(resource_filename, 'r') as file:
+            resource_data = json.load(file)
+            soc = resource_data['status'][self.rid]['soc']
+        return soc
+
     def calculate_reward(self, action):
         dummy_offer = da.Agent(self.episode, market_info, resource_info).make_me_an_offer()
         def get_average(value):
@@ -236,12 +244,13 @@ class EnergyEnvironment:
             else:
                 return value
         
+        
         if 'DAM' in self.market_type:
             steps = min(24, self.max_steps - self.current_step)
             reward = 0
             for step in range(steps):
-                action_step = torch.tensor(action_data.iloc[self.episode, self.current_step], dtype=torch.float32)
-                price_forecast = self.price_forecast.iloc[self.current_step + step, :].tolist()
+                action_step = action[self.current_step + step]  # Use the action value for the current step
+                price_forecast = self.price_forecast.iloc[self.current_step + step, 0]
                 ch_mc = get_average(dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step + step}"])
                 ch_mq = get_average(dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step + step}"])
                 dc_mc = get_average(dummy_offer[self.rid]['block_dc_mc'][f"{self.current_step + step}"])
@@ -249,11 +258,12 @@ class EnergyEnvironment:
                 
                 ch_reward = np.array(ch_mq * (price_forecast - abs((action_step-1) * ch_mc)), dtype=np.float32)
                 dc_reward = np.array(dc_mq * (price_forecast - abs((1-action_step * dc_mc))), dtype=np.float32)
-                reward = dc_reward - ch_reward
+                reward += dc_reward - ch_reward
         elif 'RTM' in self.market_type:
-            price_forecast = self.price_forecast.iloc[self.current_step, :].tolist()
+            price_forecast = self.price_forecast.iloc[self.current_step, 0]
             soc_mc = get_average(dummy_offer[self.rid]['block_soc_mc'][f"{self.current_step}"]) if f"{self.current_step}" in dummy_offer[self.rid]['block_soc_mc'] else 0
             soc_mq = get_average(dummy_offer[self.rid]['block_soc_mq'][f"{self.current_step}"]) if f"{self.current_step}" in dummy_offer[self.rid]['block_soc_mq'] else 0
+            action_step = action[self.current_step]  # Use the action value for the current step
             soc_reward = np.array(soc_mq * (price_forecast - abs((1-action_step) * soc_mc)), dtype=np.float32)
             reward = soc_reward
         return reward
