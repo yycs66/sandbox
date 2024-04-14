@@ -205,7 +205,7 @@ if __name__ == "__main__":
 
     # Testing loop
     while True:
-        env = EnergyEnvironment(time_step, market_info, resource_info)
+        env = EnergyEnvironment(time_step)
         state = env.reset()
         done = False
         episode_reward = 0
