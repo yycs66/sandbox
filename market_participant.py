@@ -107,14 +107,14 @@ class EnergyEnvironment:
         market_filename = f'market_{self.episode-1}.json'
         with open(market_filename, 'r') as file:
             market_data = json.load(file)
-        market_type = market_data['market_type']
+        self.market_type = market_data['market_type']
         resource_filename = f'resource_{self.episode-1}.json'
         with open(resource_filename, 'r') as file:
             resource_data = json.load(file)
         self.rid = resource_info['rid']
         self.bus = resource_info['bus']
         
-        self.price_forecast = pd.DataFrame.from_dict(market_data['previous'][market_type]['prices']['EN'][self.bus]) if 'EN' in market_data['previous'][market_type]['prices'] else pd.DataFrame.from_dict(market_data['forecast'][market_type]['prices']['EN'][self.bus])
+        self.price_forecast = pd.DataFrame.from_dict(market_data['previous'][self.market_type]['prices']['EN'][self.bus]) if 'EN' in market_data['previous'][self.market_type]['prices'] else pd.DataFrame.from_dict(market_data['forecast'][market_type]['prices']['EN'][self.bus])
         self.solar_data = pd.DataFrame.from_dict(market_data['forecast']['solar']) if 'solar' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['solar'])
         self.wind_data = pd.DataFrame.from_dict(market_data['forecast']['wind']) if 'wind' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['wind'])
         self.load_data = pd.DataFrame.from_dict(market_data['forecast']['load']) if 'load' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['load'])
