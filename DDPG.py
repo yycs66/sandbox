@@ -53,14 +53,12 @@ class Critic(nn.Module):
 # Define DDPG Agent
 class DDPGAgent:
 
-    def __init__(self, state_dim, action_dim, action_bound,action_min, 
-                 action_max,hidden_dim, buffer_size, 
+    def __init__(self, state_dim, action_dim, action_bound,hidden_dim, buffer_size, 
                  learning_rate,batch_size, gamma, tau):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.action_bound = action_bound
-        self.action_min = action_min
-        self.action_max = action_max
+        self.buffer_size = buffer_size  
         self.batch_size = batch_size
         self.gamma = gamma
         self.hidden_dim = hidden_dim
@@ -280,7 +278,7 @@ action_bound = action_max - action_min
 # Initialize DDPG agent
 agent = DDPGAgent(state_dim=state_dim, learning_rate=learning_rate,hidden_dim=hidden_dim,
                   buffer_size=buffer_size,batch_size=batch_size, gamma=gamma,
-                   tau=tau, action_dim=action_dim, action_min=action_min, action_max=action_max,action_bound=action_bound)
+                   tau=tau, action_dim=action_dim, action_bound=action_bound)
 
 # Create an instance of the EnergyEnvironment
 env = EnergyEnvironment(price_forecast, solar_data, wind_data, load_data, soc_data, action_data, rewards_data)

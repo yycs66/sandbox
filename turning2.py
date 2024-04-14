@@ -33,6 +33,7 @@ env = EnergyEnvironment(price_forecast, solar_data, wind_data, load_data, soc_da
 best_reward = -np.inf
 best_params = None
 num_episodes = 289
+action_bound= 2
 
 # Iterate over hyperparameter combinations
 for hidden_dim in hidden_dim_options:
@@ -41,8 +42,7 @@ for hidden_dim in hidden_dim_options:
             for gamma in gamma_options:
                 for tau in tau_options:
                     # Initialize DDPG agent with current hyperparameters
-                    agent = DDPGAgent(state_dim=state_dim, action_dim=action_dim, action_min=action_min,
-                                      action_max=action_max, action_bound=action_bound, hidden_dim=hidden_dim,
+                    agent = DDPGAgent(state_dim=state_dim, action_dim=action_dim, action_bound=action_bound, hidden_dim=hidden_dim,
                                       learning_rate=learning_rate, batch_size=batch_size, gamma=gamma, tau=tau)
                     
                     # Training loop
