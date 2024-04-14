@@ -118,7 +118,7 @@ class EnergyEnvironment:
         self.solar_data = pd.DataFrame.from_dict(market_data['forecast']['solar']) if 'solar' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['solar'])
         self.wind_data = pd.DataFrame.from_dict(market_data['forecast']['wind']) if 'wind' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['wind'])
         self.load_data = pd.DataFrame.from_dict(market_data['forecast']['load']) if 'load' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['load'])
-        self.soc =pd.DataFrame.from_dict(resource_data['status'][self.rid]['soc']) if 'soc' in resource_data['status'][self.rid] else pd.DataFrame.from_dict(resource_data['forecast'][self.rid]['soc'])
+        self.soc =pd.DataFrame.from_dict(resource_data['status'][self.rid]['soc']) if 'soc' in resource_data['status'][self.rid] else pd.DataFrame.from_dict(resource_data['status'][self.rid]['soc'])
         
         self.max_steps = self.price_forecast.shape[0]
         
