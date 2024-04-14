@@ -172,11 +172,7 @@ class EnergyEnvironment:
             self.load_data = pd.DataFrame(market_data['forecast']['load'])
         else:
             self.load_data = pd.DataFrame([0] * 36) 
-        """ self.price_forecast = pd.DataFrame.from_dict(market_data['previous'][self.market_type]['prices']['EN'][self.bus]) if 'EN' in market_data['previous'][self.market_type]['prices'] else pd.DataFrame.from_dict(market_data['forecast'][market_type]['prices']['EN'][self.bus])
-        self.solar_data = pd.DataFrame.from_dict(market_data['forecast']['solar']) if 'solar' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['solar'])
-        self.wind_data = pd.DataFrame.from_dict(market_data['forecast']['wind']) if 'wind' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['wind'])
-        self.load_data = pd.DataFrame.from_dict(market_data['forecast']['load']) if 'load' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['load'])
-        self.max_steps = self.price_forecast.shape[0] """
+    
         self.max_steps = self.price_forecast.shape[0]
         
     def reset(self):
@@ -195,32 +191,47 @@ class EnergyEnvironment:
                 action = agent.choose_action(state)
             
             # Load data for the next state
-            next_market_filename = f'market_{self.episode}.json'
-            next_resource_filename = f'resource_{self.episode}.json'
+            market_filename = f'market_{self.episode-1}.json'
+            resource_filename = f'resource_{self.episode}.json'
             
-            with open(next_market_filename, 'r') as file:
-                next_market_data = json.load(file)
-            with open(next_resource_filename, 'r') as file:
-                next_resource_data = json.load(file)
+            with open(market_filename, 'r') as file:
+                market_data = json.load(file)
+            with open(resource_filename, 'r') as file:
+                resource_data = json.load(file)
             
             # Get the next state values
-            if self.current_step < len(next_market_data['prices'][self.market_type]['values']):
-                next_price_forecast = next_market_data['prices'][self.market_type]['values'][self.current_step]
-                next_solar_data = next_market_data['solar'][self.current_step] if 'solar' in next_market_data else 0
-                next_wind_data = next_market_data['wind'][self.current_step] if 'wind' in next_market_data else 0
-                next_load_data = next_market_data['load'][self.current_step] if 'load' in next_market_data else 0
-                next_soc_data = next_resource_data['status'][self.rid]['soc']
+            if self.current_step < len(market_data['previous'][self.market_type]['prices']['EN'][self.bus]):
+                if 'EN' in market_data['previous'][self.market_type]['prices']:
+                    next_price_forecast = pd.DataFrame(market_data['previous'][self.market_type]['prices']['EN'][self.bus][self.current_step])
+                else:
+                    next_price_forecast =pd.DataFrame(market_data['previous'][self.market_type]['prices']['EN'][self.bus][self.current_step-1])
+                
+                if 'solar' in market_data['forecast']:
+                    next_solar_data = pd.DataFrame(market_data['forecast']['solar'][self.current_step])
+                else:
+                    next_solar_data = pd.DataFrame(market_data['forecast']['solar'][self.current_step-1])  # Default values of all zeros with 36 elements
+                
+                if 'wind' in market_data['forecast']:
+                    next_wind_data = pd.DataFrame(market_data['forecast']['wind'][self.current_step])
+                else:
+                    next_wind_data = pd.DataFrame(market_data['forecast']['wind'][self.current_step-1])  # Default values of all zeros with 36 elements
+                
+                if 'load' in market_data['forecast']:
+                    next_load_data = pd.DataFrame(market_data['forecast']['load'][self.current_step])
+                else:
+                    next_load_data = pd.DataFrame(market_data['forecast']['load'][self.current_step-1])
+    
+    
+                next_soc_data = resource_data['status'][self.rid]['soc']
                 
                 next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data]
                 next_state = pd.to_numeric(next_state)
             else:
-                next_state = np.zeros_like(state)  # Placeholder for out-of-bounds state
+                next_state = np.zeros_like(state)  
                 done = True  # Set done to True if self.current_step exceeds the valid range
-        else:
-            next_state = np.zeros_like(state)  # Placeholder for terminal state
         
         reward = self.calculate_reward(action)
-    
+        
         return next_state, reward, done
     
     def get_state(self):
