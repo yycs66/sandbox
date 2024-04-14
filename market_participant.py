@@ -95,13 +95,45 @@ class DDPGAgent:
         self.actor = Actor(state_dim, action_dim, action_bound, hidden_dim)
         self.actor.load_state_dict(torch.load('actor_model.pth'))
         self.actor.eval()
-    
     def choose_action(self, state):
         state = torch.FloatTensor(state).unsqueeze(0)
         action = self.actor(state).detach().cpu().numpy().squeeze(0)
         action = np.clip(action, 0, self.action_bound)
         return action
 
+""" a new DDPGAgent which can do train-tuning
+class DDPGAgent:
+    def __init__(self, state_dim, action_dim, action_bound, hidden_dim=(256, 128), mode='train'):
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.action_bound = action_bound
+        self.actor = Actor(state_dim, action_dim, action_bound, hidden_dim)
+        
+        if mode == 'fine-tune':
+            self.actor.load_state_dict(torch.load('actor_model.pth'))
+        
+        self.actor_optimizer = torch.optim.Adam(self.actor.parameters())
+        self.mode = mode
+
+    def train(self, state, action):
+        state = torch.FloatTensor(state).unsqueeze(0)
+        action = torch.FloatTensor(action).unsqueeze(0)
+        
+        actor_output = self.actor(state)
+        actor_loss = torch.mean((actor_output - action) ** 2)
+        
+        self.actor_optimizer.zero_grad()
+        actor_loss.backward()
+        self.actor_optimizer.step()
+
+    def choose_action(self, state):
+        state = torch.FloatTensor(state).unsqueeze(0)
+        action = self.actor(state).detach().cpu().numpy().squeeze(0)
+        action = np.clip(action, 0, self.action_bound)
+        return action
+
+    def save_model(self, filename):
+        torch.save(self.actor.state_dict(), filename) """
 # Define the Energy Environment
 class EnergyEnvironment:
     def __init__(self, episode):
@@ -132,15 +164,17 @@ class EnergyEnvironment:
         state = self.get_state()
         return state
     
-    def step(self, action):
-        # Update the state based on the action taken
-       
+    def step(self, action=None):
+        
         # Check if the episode is done
         done = self.current_step +1 >= self.max_steps
         
         if not done:
             self.current_step += 1
-            action = self.action_data.iloc[self.episode, self.current_step]
+            if action is None:
+                state = self.get_state()    
+                action = agent.choose_action(state)
+            
         
             next_state = [self.price_forecast.iloc[self.episode,self.current_step ],
                           self.solar_data.iloc[self.episode,self.current_step],
@@ -202,14 +236,50 @@ class EnergyEnvironment:
     def set_episode(self, episode):
         self.episode = episode
 
-    
+""" a new main file for train and tuning mode
+if __name__ == "__main__":
+    # ... (existing code) ...
+
+    # Initialize DDPG agent with the best hyperparameters
+    hidden_dim = (256, 128)  # Replace with the best hyperparameters found during tuning
+    agent = DDPGAgent(state_dim=state_dim, action_dim=action_dim, action_bound=action_bound, hidden_dim=hidden_dim, mode=args.mode)
+
+    # Training/fine-tuning loop
+    for episode in range(time_step, time_step + args.num_episodes):
+        env = EnergyEnvironment(episode)
+        state = env.reset()
+        done = False
+
+        while not done:
+            action = agent.choose_action(state)
+            factors = action
+
+            scaled_agent = Scaled_agent(episode, market_info, resource_info)
+            scaled_agent.scaling(da, factors)
+
+            next_state, reward, done = env.step(factors)
+
+            # Train or fine-tune the agent
+            if args.mode == 'train':
+                agent.train(state, action)
+            elif args.mode == 'fine-tune':
+                agent.train(state, action)
+
+            state = next_state
+
+        # Save the updated model after each episode
+        agent.save_model(f'actor_model_{episode}.pth')
+
+    # Save the final model
+    agent.save_model('actor_model.pth') """    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('time_step', type=int, help='Integer time step tracking the progress of the\
                         simulated market.')
     parser.add_argument('market_file', help='json formatted dictionary with market information.')
     parser.add_argument('resource_file', help='json formatted dictionary with resource information.')
-
+    """ parser.add_argument('--mode', type=str, choices=['train', 'fine-tune'], default='train',
+                    help='Specify the mode: "train" to train a new model, "fine-tune" to fine-tune a pre-trained model.') """
     args = parser.parse_args()
 
     # Parse inputs
