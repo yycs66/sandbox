@@ -153,10 +153,30 @@ class EnergyEnvironment:
         self.rid = resource_info['rid']
         self.bus = resource_info['bus']
         
-        self.price_forecast = pd.DataFrame.from_dict(market_data['previous'][self.market_type]['prices']['EN'][self.bus]) if 'EN' in market_data['previous'][self.market_type]['prices'] else pd.DataFrame.from_dict(market_data['forecast'][market_type]['prices']['EN'][self.bus])
+        if 'EN' in market_data['previous'][self.market_type]['prices']:
+            self.price_forecast = pd.DataFrame(market_data['previous'][self.market_type]['prices']['EN'][self.bus])
+        else:
+            self.price_forecast =  pd.DataFrame([0] * 36)
+        
+        if 'solar' in market_data['forecast']:
+            self.solar_data = pd.DataFrame(market_data['forecast']['solar'])
+        else:
+            self.solar_data = pd.DataFrame([0] * 36)  # Default values of all zeros with 36 elements
+        
+        if 'wind' in market_data['forecast']:
+            self.wind_data = pd.DataFrame(market_data['forecast']['wind'])
+        else:
+            self.wind_data = pd.DataFrame([0] * 36)  # Default values of all zeros with 36 elements
+        
+        if 'load' in market_data['forecast']:
+            self.load_data = pd.DataFrame(market_data['forecast']['load'])
+        else:
+            self.load_data = pd.DataFrame([0] * 36) 
+        """ self.price_forecast = pd.DataFrame.from_dict(market_data['previous'][self.market_type]['prices']['EN'][self.bus]) if 'EN' in market_data['previous'][self.market_type]['prices'] else pd.DataFrame.from_dict(market_data['forecast'][market_type]['prices']['EN'][self.bus])
         self.solar_data = pd.DataFrame.from_dict(market_data['forecast']['solar']) if 'solar' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['solar'])
         self.wind_data = pd.DataFrame.from_dict(market_data['forecast']['wind']) if 'wind' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['wind'])
         self.load_data = pd.DataFrame.from_dict(market_data['forecast']['load']) if 'load' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['load'])
+        self.max_steps = self.price_forecast.shape[0] """
         self.max_steps = self.price_forecast.shape[0]
         
     def reset(self):
@@ -175,14 +195,18 @@ class EnergyEnvironment:
                 state = self.get_state()    
                 action = agent.choose_action(state)
             
-        
-            next_state = [self.price_forecast.iloc[self.episode,self.current_step ],
+            if self.current_step < self.price_forecast.shape[1]:
+                next_state = [self.price_forecast.iloc[self.current_step, 0],
+                    self.solar_data.iloc[self.current_step, 0],
+                      self.wind_data.iloc[self.current_step, 0],
+                      self.load_data.iloc[self.current_step, 0],
+                      self.soc_data.iloc[self.episode, self.current_step]]
+                next_state = pd.to_numeric(next_state)
+            """ next_state = [self.price_forecast.iloc[self.episode,self.current_step ],
                           self.solar_data.iloc[self.episode,self.current_step],
                           self.wind_data.iloc[self.episode,self.current_step],
                           self.load_data.iloc[self.episode,self.current_step],
-                          self.soc_data.iloc[self.episode,self.current_step]]
-            next_state = pd.to_numeric(next_state)
-            
+                          self.soc_data.iloc[self.episode,self.current_step]] """  
         else:
             next_state =  np.zeros_like(state)  # Placeholder for terminal state
         reward = self.calculate_reward(action)
