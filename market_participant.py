@@ -213,7 +213,8 @@ class EnergyEnvironment:
                 next_load_data = self.load_data.iloc[self.current_step:self.current_step + 1]
                 next_soc_data = pd.DataFrame([self.get_soc() * (0.4 * action + 0.6 * (1 - action))])
 
-                next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data]
+                #next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data]
+                next_state = pd.concat([next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data], axis=1)
                 next_state = pd.to_numeric(next_state)
             else:
                 next_state = pd.DataFrame(np.zeros((1, 5)), columns=['price', 'solar', 'wind', 'load', 'soc']) 
