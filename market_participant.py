@@ -118,14 +118,14 @@ class EnergyEnvironment:
         self.solar_data = pd.DataFrame.from_dict(market_data['forecast']['solar']) if 'solar' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['solar'])
         self.wind_data = pd.DataFrame.from_dict(market_data['forecast']['wind']) if 'wind' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['wind'])
         self.load_data = pd.DataFrame.from_dict(market_data['forecast']['load']) if 'load' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['load'])
-        if 'soc' in resource_data['status'][self.rid]:
+        """ if 'soc' in resource_data['status'][self.rid]:
             soc_data = resource_data['status'][self.rid]['soc']
             if isinstance(soc_data, dict):
                 self.soc = pd.DataFrame.from_dict(soc_data)
             elif isinstance(soc_data, (list, np.ndarray)):
                 self.soc = pd.DataFrame(soc_data)
             else:
-                raise ValueError("Unsupported data type for 'soc' in resource_data['status']")
+                raise ValueError("Unsupported data type for 'soc' in resource_data['status']") """
         self.max_steps = self.price_forecast.shape[0]
         
     def reset(self):
