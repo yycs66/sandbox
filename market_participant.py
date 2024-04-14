@@ -198,10 +198,15 @@ class EnergyEnvironment:
             
             # Load data for the next state
             market_filename = f'market_{self.episode-1}.json'
+            resource_filename = f'resource_{self.episode-1}.json'
             
             
             with open(market_filename, 'r') as file:
                 market_data = json.load(file)
+            with open(resource_filename, 'r') as file:
+                resource_data = json.load(file)
+
+            self.bus = resource_data['bus']
             
             # Get the next state values
             if self.current_step < len(market_data['previous'][self.market_type]['prices']['EN'][self.bus]):
