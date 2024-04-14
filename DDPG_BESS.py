@@ -1,4 +1,4 @@
-""" tuning parameters """
+""" tuning parameters for DDPG.py """
 # Import necessary libraries
 import numpy as np
 import pandas as pd
