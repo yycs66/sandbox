@@ -76,12 +76,14 @@ class DDPGAgent:
         state = torch.FloatTensor(state).unsqueeze(0)
         action = self.actor(state).detach().cpu().numpy().squeeze(0)
         # Add noise to the action
-        noise = np.random.normal(0, noise, size=self.action_dim)
-        action += noise
-
-        """ action = np.clip(action, -self.action_bound, self.action_bound)
-        action = np.clip(action, -self.action_bound, self.action_bound) """
-        action = np.clip(action, action_min, action_max)
+        """ noise = np.random.normal(0, noise, size=self.action_dim)
+        action += noise """
+        if np.isnan(action).any() or np.isinf(action).any():
+            # Fallback to a default action or use a nearest neighbor approach
+            # Example: Use the mean action from the training data
+            action = np.mean(action_data, axis=0)
+        
+        action = np.clip(action, 0, self.action_bound)
         return action
     
     def learn(self):

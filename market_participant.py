@@ -184,7 +184,7 @@ class EnergyEnvironment:
             next_state = pd.to_numeric(next_state)
             
         else:
-            next_state = np.zeros_like(state)  # Placeholder for terminal state
+            next_state =  np.zeros_like(state)  # Placeholder for terminal state
         reward = self.calculate_reward(action)
         
         return next_state, reward, done

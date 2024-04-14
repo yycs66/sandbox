@@ -27,9 +27,25 @@ batch_size_options = [32, 64, 128]
 gamma_options = [0.95, 0.99]
 tau_options = [0.001, 0.01]
 
+
+
 # Create an instance of the EnergyEnvironment
 env = EnergyEnvironment(price_forecast, solar_data, wind_data, load_data, soc_data, action_data, rewards_data)
+""" # Split the data into training and testing sets
+train_ratio = 0.8
+train_size = int(train_ratio * len(action_data))
+train_indices = np.random.choice(len(action_data), train_size, replace=False)
+test_indices = np.setdiff1d(np.arange(len(action_data)), train_indices)
 
+# Create separate environments for training and testing
+train_env = EnergyEnvironment(price_forecast.iloc[train_indices], solar_data.iloc[train_indices],
+                              wind_data.iloc[train_indices], load_data.iloc[train_indices],
+                              soc_data.iloc[train_indices], action_data.iloc[train_indices],
+                              rewards_data.iloc[train_indices])
+test_env = EnergyEnvironment(price_forecast.iloc[test_indices], solar_data.iloc[test_indices],
+                             wind_data.iloc[test_indices], load_data.iloc[test_indices],
+                             soc_data.iloc[test_indices], action_data.iloc[test_indices],
+                             rewards_data.iloc[test_indices]) """
 best_reward = -np.inf
 best_params = None
 num_episodes = 289
@@ -42,12 +58,35 @@ for hidden_dim in hidden_dim_options:
             for gamma in gamma_options:
                 for tau in tau_options:
                     # Initialize DDPG agent with current hyperparameters
-                    agent = DDPGAgent(state_dim=state_dim, action_dim=action_dim, action_bound=action_bound, hidden_dim=hidden_dim,
+                    agent = DDPGAgent(state_dim=state_dim, action_dim=action_dim, action_bound=action_bound, 
+                                      hidden_dim=hidden_dim,buffer_size=100000,
                                       learning_rate=learning_rate, batch_size=batch_size, gamma=gamma, tau=tau)
                     
                     # Training loop
                     
-                    total_reward = 0
+                    """ total_reward = 0
+                    for episode in range(min(num_episodes, len(train_indices))):
+                        state = train_env.reset()
+                        train_env.set_episode(episode)
+                        done = False
+                        while not done:
+                            action = agent.choose_action(state)
+                            next_state, reward, done = train_env.step(action)
+                            agent.remember(state, action, reward, next_state, done)
+                            state = next_state
+                            agent.learn()
+                        total_reward += reward
+                    # Testing loop
+                    test_reward = 0
+                    for episode in range(len(test_indices)):
+                        state = test_env.reset()
+                        test_env.set_episode(episode)
+                        done = False
+                        while not done:
+                            action = agent.choose_action(state)
+                            next_state, reward, done = test_env.step(action)
+                            state = next_state
+                        test_reward += reward """
                     for episode in range(min(num_episodes, len(action_data))):
                         state = env.reset()
                         env.set_episode(episode)
