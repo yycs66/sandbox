@@ -39,9 +39,8 @@ class Critic(nn.Module):
         state = state.float()
         action = action.float()
         if action.dim() == 1:
-            action = action.unsqueeze(-1)
-        x = torch.cat([state, action], dim=-1)  # Concatenate along the second dimension
-        #print("x", x.size())
+            action = action.unsqueeze(1) 
+        x = torch.cat([state, action], dim=1)  # Concatenate along the second dimension
         x = x.float()  # Cast input to float data type
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
@@ -65,21 +64,18 @@ class DDPGAgent:
         self.target_actor = Actor(state_dim, action_dim, action_bound)
         self.critic = Critic(state_dim, action_dim)
         self.target_critic = Critic(state_dim, action_dim)
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=0.001)
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=0.002)
+        buffer_size = int(1e5)  # Define the buffer size
         self.memory = ReplayBuffer(buffer_size)
-    
+        
+            
     def choose_action(self, state, noise=0.1):
         state = torch.FloatTensor(state).unsqueeze(0)
         action = self.actor(state).detach().cpu().numpy().squeeze(0)
         # Add noise to the action
-        noise = np.random.normal(0, noise, size=self.action_dim)
-        action += noise
-
-        """ action = np.clip(action, -self.action_bound, self.action_bound)
-        action = np.clip(action, -self.action_bound, self.action_bound) """
-        action = np.clip(action, action_min, action_max)
-        return action
+            
+        action = np.clip(action, -1, 1)  # Clip actions to the range [-1, 1]
+        action = (action + 1) / 2  # Scale actions to the range [0, 1]
+        return action[0] # return a scalar value
     
     def learn(self):
         if len(self.memory) < self.batch_size:
@@ -92,13 +88,14 @@ class DDPGAgent:
         next_states = torch.FloatTensor(next_states)
         dones = torch.FloatTensor(dones).unsqueeze(-1)
         
-        target_actions = self.target_actor(next_states)
+        target_actions = self.target_actor(next_states).view(-1, self.action_dim)
         target_actions = target_actions
         target_values = self.target_critic(next_states, target_actions)
         target_returns = rewards + self.gamma * target_values * (1 - dones)
         
-        current_values = self.critic(states, actions)
-        critic_loss = nn.MSELoss()(current_values, target_returns.detach())
+        current_values = self.critic(states, actions.unsqueeze(-1))
+        #critic_loss = nn.MSELoss()(current_values, target_returns.detach())
+        critic_loss = nn.MSELoss()(current_values, target_returns)
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
@@ -126,12 +123,29 @@ class ReplayBuffer:
         self.Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
     
     def add(self, state, action, reward, next_state, done):
+        state = np.array(state, dtype=np.float32)
+        action = np.array(action, dtype=np.float32)
+        next_state = np.array(next_state, dtype=np.float32)
+        done = np.array([done], dtype=np.float32)
+        reward = np.array([reward], dtype=np.float32).flatten()[0]
+        
         self.memory.append(self.Transition(state, action, reward, next_state, done))
     
     def sample(self, batch_size):
         batch = random.sample(self.memory, batch_size)
         states, actions, rewards, next_states, dones = zip(*batch)
-        return np.array(states), np.array(actions), np.array(rewards), np.array(next_states), np.array(dones)
+        states = np.array(states)
+        actions = np.array(actions)
+        #rewards = np.array(list(rewards)).reshape((-1, 1))
+        rewards = np.array(rewards)
+        next_states = np.array(next_states)
+        dones = np.array(dones)
+        """ print("States shape:", np.shape(states))
+        print("Actions shape:", np.shape(actions))
+        print("Rewards shape:", np.shape(rewards))
+        print("Next_states shape:", np.shape(next_states))
+        print("Dones shape:", np.shape(dones)) """
+        return states, actions, rewards, next_states, dones
     
     def __len__(self):
         return len(self.memory)
@@ -183,30 +197,42 @@ class EnergyEnvironment:
             next_state = np.zeros_like(state)  # Placeholder for terminal state
         
         # Get the reward from the dataset
-        if done:
-            reward = self.rewards_data.iloc[self.episode, 1]
-        else:
-            reward = 0  # Placeholder reward for non-terminal steps
+        reward = self.calculate_reward(action)
         
         return next_state, reward, done
     def calculate_reward(self, action):
-        combined_ch_mc_data = pd.read_csv("train_data/combined_ch_mc.csv")
+        combined_ch_mc_data = pd.read_csv("train_data/combined_df_ch_mc.csv")
+        combined_ch_mq_data = pd.read_csv("train_data/combined_df_ch_mq.csv")
+        combined_dc_mc_data = pd.read_csv("train_data/combined_df_dc_ch.csv")
+        combined_dc_mq_data = pd.read_csv("train_data/combined_df_dc_mq.csv")
+        combined_soc_mc_data = pd.read_csv("train_data/combined_df_soc_mc.csv")
+        combined_soc_mq_data = pd.read_csv("train_data/combined_df_soc_mq.csv")
+        #action = self.action_data.iloc[self.episode, self.current_step]
         
-        if 'DAM' in self.market_type:
-            steps = min(24, self.max_steps - self.current_step)
-            reward = 0
-            for step in range(steps):
-                price_forecast = self.price_forecast.iloc[self.current_step + step, :].tolist()
-                block_ch_mc = dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step + step}"]
-                block_ch_mq = dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step + step}"]
-                reward += np.sum((price_forecast - action * block_ch_mc) * block_ch_mq)
-        elif 'RTM' in self.market_type:
-            price_forecast = self.price_forecast.iloc[self.current_step, :].tolist()
-            block_ch_mc = dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step}"]
-            block_ch_mq = dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step}"]
-            reward = np.sum((price_forecast - action * block_ch_mc) * block_ch_mq)
+        price_forecast = torch.tensor(self.price_forecast.iloc[self.episode, self.current_step], dtype=torch.float32)
+        ch_mc = torch.tensor(combined_ch_mc_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        ch_mq = torch.tensor(combined_ch_mq_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        dc_mc = torch.tensor(combined_dc_mc_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        dc_mq = torch.tensor(combined_dc_mq_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        soc_mc = torch.tensor(combined_soc_mc_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        soc_mq = torch.tensor(combined_soc_mq_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+
+
+        done = self.current_step + 1 >= self.max_steps
+        ch_reward = np.array(ch_mq*(price_forecast - abs(action * ch_mc)), dtype=np.float32)
+        dc_reward = np.array(dc_mq*(price_forecast - abs(action * dc_mc)), dtype=np.float32)
+        soc_reward = np.array(soc_mq*(price_forecast - abs(action * soc_mc)), dtype=np.float32)
+        reward = ch_reward + dc_reward + soc_reward
+        """ if done:
+            reward =np.array(self.rewards_data.iloc[self.episode, 1],dtype=np.float32)
+        else:
+            ch_reward = np.array(ch_mq*(price_forecast - abs(action * ch_mc)), dtype=np.float32)
+            dc_reward = np.array(dc_mq*(price_forecast - abs(action * dc_mc)), dtype=np.float32)
+            soc_reward = np.array(soc_mq*(price_forecast - abs(action * soc_mc)), dtype=np.float32)
+            reward = ch_reward + dc_reward + soc_reward """
+
         
-        return reward
+        return reward   
     def set_episode(self, episode):
         self.episode = episode
 
@@ -236,6 +262,7 @@ state_dim = 5
 
 # Define action dimension
 action_dim = action_data.shape[1]
+print('action dim is ',action_dim)
 action_max = action_data.max().values
 action_min = action_data.min().values
 action_bound = action_max - action_min
@@ -250,18 +277,21 @@ env = EnergyEnvironment(price_forecast, solar_data, wind_data, load_data, soc_da
 initial_state = np.zeros(state_dim)  # Placeholder initial state
 #print("max_steps",price_forecast.shape[1]) # Placeholder max steps per episode
 
-num_episodes = len(action_data)
+#num_episodes = len(action_data)
+num_episodes =1000
 
 # Training loop
 for episode in range(num_episodes):
     state = env.reset()
     env.set_episode(episode)
     done = False
+    episode_reward = 0  # Track the total reward for each episode
     while not done:
         action = agent.choose_action(state)
         next_state, reward, done = env.step(action)
         agent.remember(state, action, reward, next_state, done)
         state = next_state
+        episode_reward += reward  # Accumulate the reward for the episode
         agent.learn()
     print(f"Episode {episode}: Total Reward = {reward}")
     

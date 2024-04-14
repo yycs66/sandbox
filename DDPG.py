@@ -181,14 +181,37 @@ class EnergyEnvironment:
             
         else:
             next_state = np.zeros_like(state)  # Placeholder for terminal state
+        reward = self.calculate_reward(action)
         
+        return next_state, reward, done
+    def calculate_reward(self, action):   
+        combined_ch_mc_data = pd.read_csv("train_data/combined_df_ch_mc.csv")
+        combined_ch_mq_data = pd.read_csv("train_data/combined_df_ch_mq.csv")
+        combined_dc_mc_data = pd.read_csv("train_data/combined_df_dc_ch.csv")
+        combined_dc_mq_data = pd.read_csv("train_data/combined_df_dc_mq.csv")
+        combined_soc_mc_data = pd.read_csv("train_data/combined_df_soc_mc.csv")
+        combined_soc_mq_data = pd.read_csv("train_data/combined_df_soc_mq.csv")
+        #action = self.action_data.iloc[self.episode, self.current_step]
+        
+        price_forecast = torch.tensor(self.price_forecast.iloc[self.episode, self.current_step], dtype=torch.float32)
+        ch_mc = torch.tensor(combined_ch_mc_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        ch_mq = torch.tensor(combined_ch_mq_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        dc_mc = torch.tensor(combined_dc_mc_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        dc_mq = torch.tensor(combined_dc_mq_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        soc_mc = torch.tensor(combined_soc_mc_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        soc_mq = torch.tensor(combined_soc_mq_data.iloc[self.episode, self.current_step], dtype=torch.float32)
+        action_step =torch.tensor(action[self.current_step], dtype=torch.float32)
         # Get the reward from the dataset
         if done:
             reward = self.rewards_data.iloc[self.episode, 1]
         else:
-            reward = 0  # Placeholder reward for non-terminal steps
+            ch_reward = np.array(ch_mq*(price_forecast - abs(action_step * ch_mc)), dtype=np.float32)
+            dc_reward = np.array(dc_mq*(price_forecast - abs(action_step * dc_mc)), dtype=np.float32)
+            soc_reward = np.array(soc_mq*(price_forecast - abs(action_step * soc_mc)), dtype=np.float32)
+            #reward = ch_reward + dc_reward + soc_reward
+            reward =soc_reward
         
-        return next_state, reward, done
+        return reward
     
     def set_episode(self, episode):
         self.episode = episode
@@ -219,6 +242,8 @@ state_dim = 5
 
 # Define action dimension
 action_dim = action_data.shape[1]
+#action_dim = 1
+print("action_dim",action_dim)
 action_max = action_data.max().values
 action_min = action_data.min().values
 action_bound = action_max - action_min
