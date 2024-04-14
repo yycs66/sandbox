@@ -219,15 +219,16 @@ class EnergyEnvironment:
                 next_soc_data = pd.DataFrame([self.get_soc() * (0.4 * action + 0.6 * (1 - action))])
 
                 #next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data]
-                next_state = pd.concat([pd.DataFrame([next_price_forecast]), 
+                next_state = np.array([next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data])
+                """ next_state = pd.concat([pd.DataFrame([next_price_forecast]), 
                                         pd.DataFrame([next_solar_data]), 
                                         pd.DataFrame([next_wind_data]), 
                                         pd.DataFrame([next_load_data]), 
-                                        next_soc_data], axis=1)
-                #next_state = pd.concat([next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data], axis=1)
+                                        next_soc_data], axis=1) """
                 #next_state = pd.to_numeric(next_state)
             else:
-                next_state = pd.DataFrame(np.zeros((1, 5)), columns=['price', 'solar', 'wind', 'load', 'soc']) 
+                #next_state = pd.DataFrame(np.zeros((1, 5)), columns=['price', 'solar', 'wind', 'load', 'soc']) #pandas dataframe
+                next_state = np.zeros(5)
                 done = True  # Set done to True if self.current_step exceeds the valid range
         
             """ # Get the next state values
