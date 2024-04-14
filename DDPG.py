@@ -1,4 +1,4 @@
-""" tuning parameters """
+""" Best paramters for DDPG """
 # Import necessary libraries
 import numpy as np
 import pandas as pd
@@ -7,14 +7,12 @@ import torch.nn as nn
 import torch.optim as optim
 import random
 from collections import namedtuple, deque
-from itertools import product
-from sklearn.model_selection import train_test_split
 
-#batch_size = 64
+batch_size = 64
 
 # Define Actor Network
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim,action_bound, hidden_dim=(256,128)):
+    def __init__(self, state_dim, action_dim,action_bound, hidden_dim =(256,128)):
         super(Actor, self).__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim[0])
         self.fc2 = nn.Linear(hidden_dim[0], hidden_dim[1])
@@ -53,12 +51,13 @@ class Critic(nn.Module):
 
 # Define DDPG Agent
 class DDPGAgent:
-    def __init__(self, state_dim, action_dim, action_min, action_max,action_bound, buffer_size=int(1e5), batch_size=64, gamma=0.99, tau=0.001):
+    #def __init__(self, state_dim, action_dim, action_bound, buffer_size=int(1e5), batch_size=64, gamma=0.99, tau=0.001):
+    def __init__(self, state_dim, action_dim, action_bound,action_min, action_max, buffer_size=int(1e5), batch_size=64, gamma=0.99, tau=0.001):
         self.state_dim = state_dim
         self.action_dim = action_dim
+        self.action_bound = action_bound
         self.action_min = action_min
         self.action_max = action_max
-        self.action_bound = action_bound
         self.batch_size = batch_size
         self.gamma = gamma
         self.tau = tau
@@ -77,9 +76,9 @@ class DDPGAgent:
         noise = np.random.normal(0, noise, size=self.action_dim)
         action += noise
 
-        action = np.clip(action, -1, 1)  #add action to actor network's output before applying bounds
-        # Scale the action to the original range
-        action = self.action_min + (action + 1) * (self.action_max - self.action_min) / 2
+        """ action = np.clip(action, -self.action_bound, self.action_bound)
+        action = np.clip(action, -self.action_bound, self.action_bound) """
+        action = np.clip(action, action_min, action_max)
         return action
     
     def learn(self):
@@ -204,27 +203,6 @@ soc_data = pd.read_csv('train_data/soc_all.csv',index_col=False, usecols=lambda 
 action_data = pd.read_csv('train_data/factor_all.csv',index_col=False, usecols=lambda x: x != 'Unnamed: 0')
 rewards_data = pd.read_csv('train_data/score_all.csv',index_col=False, usecols=lambda x: x != 'Unnamed: 0')
 
-# Normalize the data to [0, 1]
-price_min = price_forecast.min().min()
-price_max = price_forecast.max().max()
-price_forecast = (price_forecast - price_min) / (price_max - price_min)
-
-solar_min = solar_data.min().min()
-solar_max = solar_data.max().max()
-solar_data = (solar_data - solar_min) / (solar_max - solar_min)
-
-wind_min = wind_data.min().min()
-wind_max = wind_data.max().max()
-wind_data = (wind_data - wind_min) / (wind_max - wind_min)
-
-load_min = load_data.min().min()
-load_max = load_data.max().max()
-load_data = (load_data - load_min) / (load_max - load_min)
-
-soc_min = soc_data.min().min()
-soc_max = soc_data.max().max()
-soc_data = (soc_data - soc_min) / (soc_max - soc_min)
-
 
 # Preprocess data and define state and action dimensions
 #state_dim = len(price_forecast.columns) + len(solar_data.columns) + len(wind_data.columns) + len(load_data.columns) + len(soc_data.columns)
@@ -246,7 +224,7 @@ action_min = action_data.min().values
 action_bound = action_max - action_min
 
 # Initialize DDPG agent
-agent = DDPGAgent(state_dim=state_dim, action_dim=action_dim,action_min=action_min, action_max=action_max, action_bound=action_bound)
+agent = DDPGAgent(state_dim=state_dim, action_dim=action_dim, action_min=action_min, action_max=action_max,action_bound=action_bound)
 
 # Create an instance of the EnergyEnvironment
 env = EnergyEnvironment(price_forecast, solar_data, wind_data, load_data, soc_data, action_data, rewards_data)
@@ -268,7 +246,7 @@ for episode in range(num_episodes):
         agent.remember(state, action, reward, next_state, done)
         state = next_state
         agent.learn()
-    #print(f"Episode {episode}: Total Reward = {reward}")
+    print(f"Episode {episode}: Total Reward = {reward}")
     
     # Train the agent after every 10 episodes
     if (episode + 1) % 10 == 0:
@@ -276,84 +254,3 @@ for episode in range(num_episodes):
 # Save the trained model
 torch.save(agent.actor.state_dict(), 'actor_model.pth')
 torch.save(agent.critic.state_dict(), 'critic_model.pth')
-
-# Define the range of hyperparameters to tune
-hyperparams = {
-    'hidden_dim': [(128, 64), (256, 128), (512, 256)],
-    'batch_size': [32, 64, 128],
-    'gamma': [0.95, 0.99],
-    'tau': [0.001, 0.005, 0.01],
-    'noise_scale': [0.05, 0.1, 0.2]
-}
-
-# Generate all combinations of hyperparameters
-hyperparam_combinations = list(product(*hyperparams.values()))
-
-# Split the data into training and validation sets
-train_indices, val_indices = train_test_split(range(len(action_data)), test_size=0.2, random_state=42)
-
-best_reward = -np.inf
-best_hyperparams = None
-
-# Iterate over each combination of hyperparameters
-for hidden_dim, batch_size, gamma, tau, noise_scale in hyperparam_combinations:
-    # Initialize DDPG agent with the current hyperparameters
-    agent = DDPGAgent(state_dim=state_dim, action_min=action_min, action_max=action_max, action_dim=action_dim, action_bound=action_bound,
-                      buffer_size=int(1e5), batch_size=batch_size, gamma=gamma, tau=tau)
-
-    # Create an instance of the EnergyEnvironment
-    env = EnergyEnvironment(price_forecast, solar_data, wind_data, load_data, soc_data, action_data, rewards_data)
-
-    num_episodes = len(train_indices)
-    total_reward = 0
-
-    # Training loop
-    for episode_idx in range(num_episodes):
-        episode = train_indices[episode_idx]
-        state = env.reset()
-        env.set_episode(episode)
-        done = False
-        episode_reward = 0
-
-        while not done:
-            action = agent.choose_action(state, noise=noise_scale)
-            next_state, reward, done = env.step(action)
-            agent.remember(state, action, reward, next_state, done)
-            state = next_state
-            episode_reward += reward
-            agent.learn()
-
-        total_reward += episode_reward
-        #print(f"Episode {episode_idx}: Total Reward = {episode_reward}")
-
-        # Train the agent after every 10 episodes
-        if (episode_idx + 1) % 10 == 0:
-            agent.learn()
-
-    # Evaluate the agent on the validation set
-    val_reward = 0
-    for episode_idx in range(len(val_indices)):
-        episode = val_indices[episode_idx]
-        state = env.reset()
-        env.set_episode(episode)
-        done = False
-        episode_reward = 0
-
-        while not done:
-            action = agent.choose_action(state, noise=0)  # No noise during evaluation
-            next_state, reward, done = env.step(action)
-            state = next_state
-            episode_reward += reward
-
-        val_reward += episode_reward
-
-    avg_val_reward = val_reward / len(val_indices)
-    #print(f"Hyperparameters: hidden_dim={hidden_dim}, batch_size={batch_size}, gamma={gamma}, tau={tau}, noise_scale={noise_scale}")
-    #print(f"Average Validation Reward: {avg_val_reward}")
-
-    if avg_val_reward > best_reward:
-        best_reward = avg_val_reward
-        best_hyperparams = (hidden_dim, batch_size, gamma, tau, noise_scale)
-
-print(f"Best Hyperparameters: hidden_dim={best_hyperparams[0]}, batch_size={best_hyperparams[1]}, gamma={best_hyperparams[2]}, tau={best_hyperparams[3]}, noise_scale={best_hyperparams[4]}")
-#print(f"Best Average Validation Reward: {best_reward}")
