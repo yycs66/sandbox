@@ -220,10 +220,10 @@ class EnergyEnvironment:
 
                 #next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data]
                 next_state = pd.concat([pd.DataFrame([next_price_forecast]), 
-                            pd.DataFrame([next_solar_data]), 
-                            pd.DataFrame([next_wind_data]), 
-                            pd.DataFrame([next_load_data]), 
-                            next_soc_data], axis=1)
+                                        pd.DataFrame([next_solar_data]), 
+                                        pd.DataFrame([next_wind_data]), 
+                                        pd.DataFrame([next_load_data]), 
+                                        next_soc_data], axis=1)
                 #next_state = pd.concat([next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data], axis=1)
                 #next_state = pd.to_numeric(next_state)
             else:
