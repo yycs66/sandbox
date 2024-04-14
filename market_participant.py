@@ -212,10 +212,10 @@ class EnergyEnvironment:
                 next_wind_data = pd.to_numeric(self.wind_data.iloc[self.current_step:self.current_step + 1])
                 next_load_data = pd.to_numeric(self.load_data.iloc[self.current_step:self.current_step + 1])
                 next_soc_data = pd.DataFrame([self.get_soc() * (0.4 * action + 0.6 * (1 - action))]) """
-                next_price_forecast = pd.to_numeric(self.price_forecast.iloc[self.current_step])
-                next_solar_data = pd.to_numeric(self.solar_data.iloc[self.current_step])
-                next_wind_data = pd.to_numeric(self.wind_data.iloc[self.current_step])
-                next_load_data = pd.to_numeric(self.load_data.iloc[self.current_step])
+                next_price_forecast = pd.to_numeric(self.price_forecast.iloc[self.current_step+1])
+                next_solar_data = pd.to_numeric(self.solar_data.iloc[self.current_step+1])
+                next_wind_data = pd.to_numeric(self.wind_data.iloc[self.current_step+1])
+                next_load_data = pd.to_numeric(self.load_data.iloc[self.current_step+1])
                 next_soc_data = pd.DataFrame([self.get_soc() * (0.4 * action + 0.6 * (1 - action))])
 
                 #next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data]
