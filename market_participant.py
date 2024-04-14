@@ -28,6 +28,7 @@ class Scaled_agent():
         self.resource = resource_info
         self.market_type = market_info['market_type']
         self.rid = resource_info['rid']
+        self.bus = resource_info['bus']
 
     def scaling(self, da, scaling_factor):
         # Parse inputs
@@ -103,14 +104,20 @@ class EnergyEnvironment:
         self.load_data()
         
     def load_data(self):
-        market_filename = f'market_{self.episode}.json'
+        market_filename = f'market_{self.episode-1}.json'
         with open(market_filename, 'r') as file:
             market_data = json.load(file)
         
-        self.price_forecast = pd.DataFrame.from_dict(market_data['price_forecast'])
-        self.solar_data = pd.DataFrame.from_dict(market_data['solar_forecast'])
-        self.wind_data = pd.DataFrame.from_dict(market_data['wind_forecast'])
-        self.load_data = pd.DataFrame.from_dict(market_data['load_forecast'])
+        resource_filename = f'resource_{self.episode-1}.json'
+        with open(resource_filename, 'r') as file:
+            resource_data = json.load(file)
+        self.rid = resource_info['rid']
+        
+        self.price_forecast = pd.DataFrame.from_dict(market_data['previous'][self.market_type]['EN'][self.bus])
+        self.solar_data = pd.DataFrame.from_dict(market_data['forecast']['solar'])
+        self.wind_data = pd.DataFrame.from_dict(market_data['forecast']['wind'])
+        self.load_data = pd.DataFrame.from_dict(market_data['forecast']['load'])
+        self.soc =pd.DataFrame.from_dict(resource_data['status'][self.rid]['soc'])
         
         self.max_steps = self.price_forecast.shape[0]
         
@@ -125,37 +132,45 @@ class EnergyEnvironment:
         if not done:
             self.current_step += 1
             next_state = self.get_state()
-            reward = self.get_reward()
         else:
             next_state = np.zeros_like(state)
-            reward = 0
         
-        return next_state, reward, done
+        return next_state, done
     
     def get_state(self):
-        resource_filename = f'resource_{self.current_step}.json'
+        resource_filename = f'resource_{self.episode-1}.json'
+        market_filename = f'market_{self.episode-1}.json'
         with open(resource_filename, 'r') as file:
             resource_data = json.load(file)
-        
-        soc = resource_data['soc']
-        
+        with open(market_filename, 'r') as file:
+            market_data = json.load(file)
+        soc = resource_data['status'][self.rid]['soc']
         state = [self.price_forecast.iloc[self.current_step, 0],
                  self.solar_data.iloc[self.current_step, 0],
                  self.wind_data.iloc[self.current_step, 0],
                  self.load_data.iloc[self.current_step, 0],
                  soc]
-        
         state = pd.to_numeric(state)
         return state
-    
-    def get_reward(self):
-        resource_filename = f'resource_{self.current_step}.json'
-        with open(resource_filename, 'r') as file:
-            resource_data = json.load(file)
+    def calculate_reward(self, action):
+        dummy_offer = da.Agent(self.episode, market_info, resource_info).make_me_an_offer()
         
-        reward = resource_data['score']['net_revenue']
+        if 'DAM' in self.market_type:
+            steps = min(24, self.max_steps - self.current_step)
+            reward = 0
+            for step in range(steps):
+                price_forecast = self.price_forecast.iloc[self.current_step + step, :].tolist()
+                block_ch_mc = dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step + step}"]
+                block_ch_mq = dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step + step}"]
+                reward += np.sum((price_forecast - action * block_ch_mc) * block_ch_mq)
+        elif 'RTM' in self.market_type:
+            price_forecast = self.price_forecast.iloc[self.current_step, :].tolist()
+            block_ch_mc = dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step}"]
+            block_ch_mq = dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step}"]
+            reward = np.sum((price_forecast - action * block_ch_mc) * block_ch_mq)
+        
         return reward
-
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('time_step', type=int, help='Integer time step tracking the progress of the\
@@ -182,42 +197,48 @@ if __name__ == "__main__":
     action_bound = 3.0
 
     # Initialize DDPG agent with the best hyperparameters
-    hidden_dim = (256, 128)  
+    hidden_dim = (256, 128)  # Replace with the best hyperparameters found during tuning
     agent = DDPGAgent(state_dim=state_dim, action_dim=action_dim, action_bound=action_bound, hidden_dim=hidden_dim)
 
     # Initialize variables
-    num_episodes = 289
     total_reward = 0
 
     # Testing loop
-    for episode in range(num_episodes):
-        env = EnergyEnvironment(episode)
+    while True:
+        env = EnergyEnvironment(time_step, market_info, resource_info)
         state = env.reset()
         done = False
         episode_reward = 0
         actions_taken = []
 
         while not done:
-            if episode == 0:
-                factors = np.random.uniform(0.1, 3, 36)
-            else:
-                action = agent.choose_action(state)
-                factors = action
+            action = agent.choose_action(state)
+            factors = action
 
-            scaled_agent = Scaled_agent(episode, market_info, resource_info)
+            scaled_agent = Scaled_agent(time_step, market_info, resource_info)
             scaled_agent.scaling(da, factors)
 
-            next_state, reward, done = env.step(factors)
+            next_state, done = env.step(factors)
+            
+            # Estimate the reward based on the action taken
+            reward = env.calculate_reward(action)  # Calculate the reward
             episode_reward += reward
+            
             state = next_state
 
         total_reward += episode_reward
-        print(f"Episode {episode}: Total Reward = {episode_reward}")
+        print(f"Episode {time_step}: Estimated Reward = {episode_reward}")
 
         # Save actions taken in the episode
-        action_filename = f'action_{episode}.json'
+        action_filename = f'action_{time_step}.json'
         action_data = {'actions': factors.tolist()}
         with open(action_filename, 'w') as file:
             json.dump(action_data, file)
+        
+        time_step += 1
+        
+        # Check if the simulation has reached the end
+        if time_step >= 289 * 1: # test 1 day
+            break
 
-    print(f"Total Reward over {num_episodes} episodes: {total_reward}")
+    print(f"Total Estimated Reward over {time_step} episodes: {total_reward}")
