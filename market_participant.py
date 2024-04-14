@@ -98,8 +98,19 @@ class DDPGAgent:
     def choose_action(self, state):
         state = torch.FloatTensor(state).unsqueeze(0)
         action = self.actor(state).detach().cpu().numpy().squeeze(0)
+        #action = np.clip(action, 0, self.action_bound)
+        if np.isnan(action).any() or np.isinf(action).any():
+            # Find the nearest action from the training trajectory
+            nearest_action = self.find_nearest_action(state)
+            if nearest_action is not None:
+                action = np.nan_to_num(action, nan=1.0)  # keep dummy value
+            else:
+                # If a suitable action is still not found, set the action to 0
+                action = np.zeros_like(action)
+
         action = np.clip(action, 0, self.action_bound)
         return action
+    
 
 """ a new DDPGAgent which can do train-tuning
 class DDPGAgent:
