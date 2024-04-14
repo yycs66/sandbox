@@ -209,7 +209,7 @@ class EnergyEnvironment:
             self.bus = resource_data['bus']
             
             # Get the next state values
-            if self.current_step < len(market_data['previous'][self.market_type]['prices']['EN'][self.bus]):
+            if self.current_step < len(market_data['forecast']['load']):
                 if 'EN' in market_data['previous'][self.market_type]['prices']:
                     next_price_forecast = pd.DataFrame(market_data['previous'][self.market_type]['prices']['EN'][self.bus][self.current_step])
                 else:
