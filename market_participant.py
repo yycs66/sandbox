@@ -203,12 +203,10 @@ class EnergyEnvironment:
             
             # Load data for the next state
             market_filename = f'market_{self.episode-1}.json'
-            resource_filename = f'resource_{self.episode}.json'
+            
             
             with open(market_filename, 'r') as file:
                 market_data = json.load(file)
-            with open(resource_filename, 'r') as file:
-                resource_data = json.load(file)
             
             # Get the next state values
             if self.current_step < len(market_data['previous'][self.market_type]['prices']['EN'][self.bus]):
@@ -233,7 +231,7 @@ class EnergyEnvironment:
                     next_load_data = pd.DataFrame(market_data['forecast']['load'][self.current_step-1])
     
     
-                next_soc_data = resource_data['status'][self.rid]['soc']
+                next_soc_data = self.get_soc() *(0.4*action +0.6*(1-action))
                 
                 next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data]
                 next_state = pd.to_numeric(next_state)
