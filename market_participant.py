@@ -113,7 +113,7 @@ class EnergyEnvironment:
             resource_data = json.load(file)
         self.rid = resource_info['rid']
         
-        self.price_forecast = pd.DataFrame.from_dict(market_data['previous'][market_type]['EN'][self.bus]) if 'EN' in market_data['previous'][market_type] else pd.DataFrame.from_dict(market_data['forecast'][market_type]['EN'][self.bus])
+        self.price_forecast = pd.DataFrame.from_dict(market_data['previous'][market_type]['prices']['EN'][self.bus]) if 'EN' in market_data['previous'][market_type]['prices'] else pd.DataFrame.from_dict(market_data['forecast'][market_type]['prices']['EN'][self.bus])
         self.solar_data = pd.DataFrame.from_dict(market_data['forecast']['solar']) if 'solar' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['solar'])
         self.wind_data = pd.DataFrame.from_dict(market_data['forecast']['wind']) if 'wind' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['wind'])
         self.load_data = pd.DataFrame.from_dict(market_data['forecast']['load']) if 'load' in market_data['forecast'] else pd.DataFrame.from_dict(market_data['previous']['load'])
@@ -154,27 +154,31 @@ class EnergyEnvironment:
         return state
     def calculate_reward(self, action):
         dummy_offer = da.Agent(self.episode, market_info, resource_info).make_me_an_offer()
+        def get_average(value):
+            if isinstance(value, list):
+                return np.mean(value)
+            else:
+                return value
         
         if 'DAM' in self.market_type:
             steps = min(24, self.max_steps - self.current_step)
             reward = 0
             for step in range(steps):
                 price_forecast = self.price_forecast.iloc[self.current_step + step, :].tolist()
-                block_ch_mc = dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step + step}"]
-                block_ch_mq = dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step + step}"]
-                block_dc_mc = dummy_offer[self.rid]['block_dc_mc'][f"{self.current_step + step}"]
-                block_dc_mq = dummy_offer[self.rid]['block_dc_mq'][f"{self.current_step + step}"]
+                block_ch_mc = get_average(dummy_offer[self.rid]['block_ch_mc'][f"{self.current_step + step}"])
+                block_ch_mq = get_average(dummy_offer[self.rid]['block_ch_mq'][f"{self.current_step + step}"])
+                block_dc_mc = get_average(dummy_offer[self.rid]['block_dc_mc'][f"{self.current_step + step}"])
+                block_dc_mq = get_average(dummy_offer[self.rid]['block_dc_mq'][f"{self.current_step + step}"])
                 
                 reward += np.sum((abs(action * block_ch_mc) - price_forecast) * block_ch_mq +
                                 (price_forecast - abs(action * block_dc_mc) - price_forecast) * block_dc_mq)
         elif 'RTM' in self.market_type:
             price_forecast = self.price_forecast.iloc[self.current_step, :].tolist()
-            block_soc_mc = dummy_offer[self.rid]['block_soc_mc'][f"{self.current_step}"]
-            block_soc_mq = dummy_offer[self.rid]['block_soc_mq'][f"{self.current_step}"]
+            block_soc_mc = get_average(dummy_offer[self.rid]['block_soc_mc'][f"{self.current_step}"])
+            block_soc_mq = get_average(dummy_offer[self.rid]['block_soc_mq'][f"{self.current_step}"])
             
-            reward = np.sum( (price_forecast - abs(action * block_soc_mc)) * block_soc_mq)
-        
-        return reward
+            reward = np.sum((price_forecast - abs(action * block_soc_mc)) * block_soc_mq)
+
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
