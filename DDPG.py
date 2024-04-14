@@ -2,6 +2,7 @@
 # Import necessary libraries
 import numpy as np
 import pandas as pd
+print(pd.__version__)
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,7 +13,7 @@ batch_size = 64
 
 # Define Actor Network
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim,action_bound, hidden_dim =(256,128)):
+    def __init__(self, state_dim, action_dim,action_bound, hidden_dim):
         super(Actor, self).__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim[0])
         self.fc2 = nn.Linear(hidden_dim[0], hidden_dim[1])
@@ -51,8 +52,10 @@ class Critic(nn.Module):
 
 # Define DDPG Agent
 class DDPGAgent:
-    #def __init__(self, state_dim, action_dim, action_bound, buffer_size=int(1e5), batch_size=64, gamma=0.99, tau=0.001):
-    def __init__(self, state_dim, action_dim, action_bound,action_min, action_max, buffer_size=int(1e5), batch_size=64, gamma=0.99, tau=0.001):
+
+    def __init__(self, state_dim, action_dim, action_bound,action_min, 
+                 action_max,hidden_dim, buffer_size, 
+                 learning_rate,batch_size, gamma, tau):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.action_bound = action_bound
@@ -60,13 +63,15 @@ class DDPGAgent:
         self.action_max = action_max
         self.batch_size = batch_size
         self.gamma = gamma
+        self.hidden_dim = hidden_dim
+        self.lr = learning_rate  
         self.tau = tau
-        self.actor = Actor(state_dim, action_dim, action_bound)
-        self.target_actor = Actor(state_dim, action_dim, action_bound)
+        self.actor = Actor(state_dim, action_dim, action_bound,hidden_dim)
+        self.target_actor = Actor(state_dim, action_dim, action_bound, hidden_dim)
         self.critic = Critic(state_dim, action_dim)
         self.target_critic = Critic(state_dim, action_dim)
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=0.001)
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=0.002)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), self.lr)#lr=0.002
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), self.lr)#lr=0.002
         self.memory = ReplayBuffer(buffer_size)
     
     def choose_action(self, state, noise=0.1):
@@ -170,7 +175,7 @@ class EnergyEnvironment:
         
         if not done:
             self.current_step += 1
-            action_value = self.action_data.iloc[self.episode, self.current_step]
+            action = self.action_data.iloc[self.episode, self.current_step]
         
             next_state = [self.price_forecast.iloc[self.episode,self.current_step ],
                           self.solar_data.iloc[self.episode,self.current_step],
@@ -185,31 +190,50 @@ class EnergyEnvironment:
         
         return next_state, reward, done
     def calculate_reward(self, action):   
-        combined_ch_mc_data = pd.read_csv("train_data/combined_df_ch_mc.csv")
-        combined_ch_mq_data = pd.read_csv("train_data/combined_df_ch_mq.csv")
-        combined_dc_mc_data = pd.read_csv("train_data/combined_df_dc_ch.csv")
-        combined_dc_mq_data = pd.read_csv("train_data/combined_df_dc_mq.csv")
-        combined_soc_mc_data = pd.read_csv("train_data/combined_df_soc_mc.csv")
-        combined_soc_mq_data = pd.read_csv("train_data/combined_df_soc_mq.csv")
-        #action = self.action_data.iloc[self.episode, self.current_step]
+        combined_ch_mc_data = pd.read_csv("train_data/combined_df_ch_mc.csv", index_col=False, usecols=lambda x: x != 'Unnamed: 0', header=None)
+        combined_ch_mc_data.index = pd.to_numeric(combined_ch_mc_data.index, errors='coerce')
+        combined_ch_mc_data = combined_ch_mc_data.fillna(0).replace([np.inf, -np.inf], 0)
+        combined_ch_mc_data.columns = combined_ch_mc_data.columns.astype('float64')
+        combined_ch_mq_data = pd.read_csv("train_data/combined_df_ch_mq.csv",index_col=False, usecols=lambda x: x != 'Unnamed: 0', header=None)
+        combined_dc_mc_data = pd.read_csv("train_data/combined_df_dc_ch.csv",index_col=False, usecols=lambda x: x != 'Unnamed: 0', header=None)
+        combined_dc_mq_data = pd.read_csv("train_data/combined_df_dc_mq.csv",index_col=False, usecols=lambda x: x != 'Unnamed: 0', header=None)
+        combined_soc_mc_data = pd.read_csv("train_data/combined_df_soc_mc.csv",index_col=False, usecols=lambda x: x != 'Unnamed: 0', header=None)
+        combined_soc_mq_data = pd.read_csv("train_data/combined_df_soc_mq.csv",index_col=False, usecols=lambda x: x != 'Unnamed: 0', header=None)
+
+        # Check if the current state-action pair exists in the predefined dataset
+        if self.episode in combined_ch_mc_data.index and self.current_step in combined_ch_mc_data.columns:
+            ch_mc = torch.tensor(pd.to_numeric(combined_ch_mc_data.iloc[self.episode, self.current_step], errors='coerce'), dtype=torch.float32)
+            ch_mq = torch.tensor(pd.to_numeric(combined_ch_mq_data.iloc[self.episode, self.current_step], errors='coerce'), dtype=torch.float32)
+            dc_mc = torch.tensor(pd.to_numeric(combined_dc_mc_data.iloc[self.episode, self.current_step], errors='coerce'), dtype=torch.float32)
+            dc_mq = torch.tensor(pd.to_numeric(combined_dc_mq_data.iloc[self.episode, self.current_step], errors='coerce'), dtype=torch.float32)
+            soc_mc = torch.tensor(pd.to_numeric(combined_soc_mc_data.iloc[self.episode, self.current_step], errors='coerce'), dtype=torch.float32)
+            soc_mq = torch.tensor(pd.to_numeric(combined_soc_mq_data.iloc[self.episode, self.current_step], errors='coerce'), dtype=torch.float32)
+        else:
+            # Find the nearest matching state-action pair from the predefined dataset
+            #nearest_episode = np.argmin(np.abs(combined_ch_mc_data.index - self.episode))
+            #nearest_step = np.argmin(np.abs(combined_ch_mc_data.columns.astype(int) - self.current_step))
+            nearest_episode = np.argmin(np.abs(combined_ch_mc_data.index - self.episode))
+            nearest_step_index = np.abs(combined_ch_mc_data.columns.astype(int) - self.current_step).idxmin()
+            nearest_step = combined_ch_mc_data.columns.get_loc(nearest_step_index)
+            ch_mc = torch.tensor(combined_ch_mc_data.iloc[nearest_episode, nearest_step], dtype=torch.float32)
+            ch_mq = torch.tensor(combined_ch_mq_data.iloc[nearest_episode, nearest_step], dtype=torch.float32)
+            dc_mc = torch.tensor(combined_dc_mc_data.iloc[nearest_episode, nearest_step], dtype=torch.float32)
+            dc_mq = torch.tensor(combined_dc_mq_data.iloc[nearest_episode, nearest_step], dtype=torch.float32)
+            soc_mc = torch.tensor(combined_soc_mc_data.iloc[nearest_episode, nearest_step], dtype=torch.float32)
+            soc_mq = torch.tensor(combined_soc_mq_data.iloc[nearest_episode, nearest_step], dtype=torch.float32)
         
+        action_step = torch.tensor(action_data.iloc[self.episode, self.current_step], dtype=torch.float32)
         price_forecast = torch.tensor(self.price_forecast.iloc[self.episode, self.current_step], dtype=torch.float32)
-        ch_mc = torch.tensor(combined_ch_mc_data.iloc[self.episode, self.current_step], dtype=torch.float32)
-        ch_mq = torch.tensor(combined_ch_mq_data.iloc[self.episode, self.current_step], dtype=torch.float32)
-        dc_mc = torch.tensor(combined_dc_mc_data.iloc[self.episode, self.current_step], dtype=torch.float32)
-        dc_mq = torch.tensor(combined_dc_mq_data.iloc[self.episode, self.current_step], dtype=torch.float32)
-        soc_mc = torch.tensor(combined_soc_mc_data.iloc[self.episode, self.current_step], dtype=torch.float32)
-        soc_mq = torch.tensor(combined_soc_mq_data.iloc[self.episode, self.current_step], dtype=torch.float32)
-        action_step =torch.tensor(action[self.current_step], dtype=torch.float32)
-        # Get the reward from the dataset
+        
+        done = self.current_step + 1 >= self.max_steps
         if done:
             reward = self.rewards_data.iloc[self.episode, 1]
         else:
-            ch_reward = np.array(ch_mq*(price_forecast - abs(action_step * ch_mc)), dtype=np.float32)
-            dc_reward = np.array(dc_mq*(price_forecast - abs(action_step * dc_mc)), dtype=np.float32)
-            soc_reward = np.array(soc_mq*(price_forecast - abs(action_step * soc_mc)), dtype=np.float32)
-            #reward = ch_reward + dc_reward + soc_reward
-            reward =soc_reward
+            ch_reward = np.array(ch_mq * (price_forecast - abs((action_step-1) * ch_mc)), dtype=np.float32)
+            dc_reward = np.array(dc_mq * (price_forecast - abs((1-action_step * dc_mc))), dtype=np.float32)
+            soc_reward = np.array(soc_mq * (price_forecast - abs((1-action_step) * soc_mc)), dtype=np.float32)
+            alpha = 0.6  # You can adjust the value of alpha as needed
+            reward = alpha * (dc_reward - ch_reward) + (1 - alpha) * soc_reward
         
         return reward
     
@@ -242,14 +266,21 @@ state_dim = 5
 
 # Define action dimension
 action_dim = action_data.shape[1]
-#action_dim = 1
-print("action_dim",action_dim)
+learning_rate = 0.001
+hidden_dim=(256,128)
+buffer_size=int(1e5) 
+batch_size=64 
+gamma=0.99
+tau=0.001
+
 action_max = action_data.max().values
 action_min = action_data.min().values
 action_bound = action_max - action_min
 
 # Initialize DDPG agent
-agent = DDPGAgent(state_dim=state_dim, action_dim=action_dim, action_min=action_min, action_max=action_max,action_bound=action_bound)
+agent = DDPGAgent(state_dim=state_dim, learning_rate=learning_rate,hidden_dim=hidden_dim,
+                  buffer_size=buffer_size,batch_size=batch_size, gamma=gamma,
+                   tau=tau, action_dim=action_dim, action_min=action_min, action_max=action_max,action_bound=action_bound)
 
 # Create an instance of the EnergyEnvironment
 env = EnergyEnvironment(price_forecast, solar_data, wind_data, load_data, soc_data, action_data, rewards_data)
