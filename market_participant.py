@@ -181,8 +181,8 @@ class EnergyEnvironment:
                                 (price_forecast - abs(action * block_dc_mc) - price_forecast) * block_dc_mq)
         elif 'RTM' in self.market_type:
             price_forecast = self.price_forecast.iloc[self.current_step, :].tolist()
-            block_soc_mc = get_average(dummy_offer[self.rid]['block_soc_mc'][f"{self.current_step+ step}"])
-            block_soc_mq = get_average(dummy_offer[self.rid]['block_soc_mq'][f"{self.current_step+ step}"])
+            block_soc_mc = get_average(dummy_offer[self.rid]['block_soc_mc'][f"{self.current_step}"]) if f"{self.current_step}" in dummy_offer[self.rid]['block_soc_mc'] else 0
+            block_soc_mq = get_average(dummy_offer[self.rid]['block_soc_mq'][f"{self.current_step}"]) if f"{self.current_step}" in dummy_offer[self.rid]['block_soc_mq'] else 0
             
             reward = np.sum((price_forecast - abs(action * block_soc_mc)) * block_soc_mq)
 
