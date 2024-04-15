@@ -35,9 +35,6 @@ class Scaled_agent():
         dummy_agent = da.Agent(time_step, market_info, resource_info)
         dummy_offer = dummy_agent.make_me_an_offer()
         timestamp = list(dummy_offer[self.rid]['block_ch_mc'].keys())
-        #print("lenth of timestamp is: ", len(timestamp))  
-        #print("lenth of scaling factor is: ", len(scaling_factor))
-        #factor_action = np.hstack((timestamp, scaling_factor))
         factor_action_dict = dict(zip(timestamp, scaling_factor))
         if 'DAM' in self.market_type:
                 for timestamp, value in dummy_offer[self.rid]['block_ch_mc'].items():
@@ -147,11 +144,11 @@ class EnergyEnvironment:
         self.current_step = 0
         self.max_steps = None
         self.loaddata()
-        print("episode is: ", self.episode)
+        #print("episode is: ", self.episode)
         
     def loaddata(self):
         market_filename = f'market_{self.episode-1}.json'
-        print("market_filename is: ", market_filename)
+        #print("market_filename is: ", market_filename)
         with open(market_filename, 'r') as file:
             market_data = json.load(file)
         self.market_type = market_data['market_type']
@@ -233,13 +230,6 @@ class EnergyEnvironment:
                     next_load_data = 0.0
                 
                 next_soc_data = self.get_soc() * (0.4 * action[0] + 0.6 * (1 - action[0]))
-                """ print("next_price_forecast is",next_price_forecast )
-                print("next_solar is ", next_solar_data)
-                print("next_wind is ", next_wind_data)
-                print("next_load is ", next_load_data)
-                print("next_soc is ", next_soc_data)
-                print(type(market_data['previous'][self.market_type]['prices']['EN'][self.bus]))
-                print("size of price_forcast is", len(self.price_forecast)) """
                 
                 next_state = np.array([next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data])
             else:
@@ -394,7 +384,7 @@ if __name__ == "__main__":
     # Testing loop
     while True:
         episode = time_step
-        print("episode is: ", episode)
+        #print("episode is: ", episode)
         env = EnergyEnvironment(episode)
         state = env.reset()
         done = False
