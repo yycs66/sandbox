@@ -230,6 +230,11 @@ class EnergyEnvironment:
                     next_load_data = 0.0
                 
                 next_soc_data = self.get_soc() * (0.4 * action + 0.6 * (1 - action))
+                print("next_price_forecast is",next_price_forecast )
+                print("next_solar is ", next_solar_data)
+                print("next_wind is ", next_wind_data)
+                print("next_load is ", next_load_data)
+                print("next_soc is ", next_soc_data)
                 
                 next_state = np.array([next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data])
             else:
