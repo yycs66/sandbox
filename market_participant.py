@@ -216,7 +216,7 @@ class EnergyEnvironment:
                 next_solar_data = pd.to_numeric(self.solar_data.iloc[self.current_step+1])
                 next_wind_data = pd.to_numeric(self.wind_data.iloc[self.current_step+1])
                 next_load_data = pd.to_numeric(self.load_data.iloc[self.current_step+1])
-                next_soc_data = pd.DataFrame([self.get_soc() * (0.4 * action + 0.6 * (1 - action))])
+                next_soc_data = np.array([self.get_soc() * (0.4 * action + 0.6 * (1 - action))])
 
                 #next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data]
                 next_state = np.array([next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data])
