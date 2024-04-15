@@ -189,6 +189,7 @@ class EnergyEnvironment:
     def step(self, action):
         # Check if the episode is done
         done = self.current_step + 1 >= self.max_steps
+        next_state = None  # Initialize next_state with None
         
         if not done:
             self.current_step += 1
@@ -240,10 +241,10 @@ class EnergyEnvironment:
                 
                 next_state = np.array([next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data])
             else:
-                next_state = np.zeros(5)
                 done = True  # Set done to True if self.current_step exceeds the valid range
-        
-                
+        if next_state is None:
+            next_state = np.zeros(5)  # Set next_state to a default value if it is None
+
         reward = self.calculate_reward(action)
         
         return next_state, reward, done
