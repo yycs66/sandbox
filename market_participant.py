@@ -210,7 +210,7 @@ class EnergyEnvironment:
                 self.rid = resource_data['rid']
                 
                 if 'EN' in market_data['current'][self.market_type]['prices']:
-                    next_price_forecast = pd.to_numeric(market_data['current'][self.market_type]['prices']['EN'][self.bus][self.current_step])
+                    next_price_forecast = pd.to_numeric(market_data['previous'][self.market_type]['prices']['EN'][self.bus][self.current_step])
                 else:
                     next_price_forecast = 0.0
                 
