@@ -147,9 +147,11 @@ class EnergyEnvironment:
         self.current_step = 0
         self.max_steps = None
         self.loaddata()
+        print("episode is: ", self.episode)
         
     def loaddata(self):
         market_filename = f'market_{self.episode-1}.json'
+        print("market_filename is: ", market_filename)
         with open(market_filename, 'r') as file:
             market_data = json.load(file)
         self.market_type = market_data['market_type']
@@ -391,7 +393,9 @@ if __name__ == "__main__":
 
     # Testing loop
     while True:
-        env = EnergyEnvironment(time_step)
+        episode = time_step
+        print("episode is: ", episode)
+        env = EnergyEnvironment(episode)
         state = env.reset()
         done = False
         episode_reward = 0
