@@ -407,6 +407,16 @@ if __name__ == "__main__":
 
             scaled_agent = Scaled_agent(time_step, market_info, resource_info)
             scaled_agent.scaling(da, factors)
+            # Write the updated market and resource information to file
+            with open(args.market_file, 'w') as f:
+                json.dump(market_info, f, cls=NpEncoder)
+            with open(f'market_{time_step}.json', 'w') as f:
+                json.dump(market_info, f, cls=NpEncoder)
+            with open(args.resource_file, 'w') as f:
+                json.dump(resource_info, f, cls=NpEncoder)
+            with open(f'resource_{time_step}.json', 'w') as f:
+                json.dump(resource_info, f, cls=NpEncoder)
+
 
             next_state, reward, done = env.step(action)
             
