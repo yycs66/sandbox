@@ -146,9 +146,9 @@ class EnergyEnvironment:
         self.episode = episode
         self.current_step = 0
         self.max_steps = None
-        self.load_data()
+        self.loaddata()
         
-    def load_data(self):
+    def loaddata(self):
         market_filename = f'market_{self.episode-1}.json'
         with open(market_filename, 'r') as file:
             market_data = json.load(file)
@@ -205,53 +205,37 @@ class EnergyEnvironment:
                 market_data = json.load(file)
             with open(resource_filename, 'r') as file:
                 resource_data = json.load(file)
-            if self.current_step < len(market_data['forecast']['load']):
+            if self.current_step < len(self.price_forecast):
                 self.bus = resource_data['bus']
                 self.rid = resource_data['rid']
-                next_price_forecast = pd.to_numeric(self.price_forecast.iloc[self.current_step])
-                next_solar_data = pd.to_numeric(self.solar_data.iloc[self.current_step])
-                next_wind_data = pd.to_numeric(self.wind_data.iloc[self.current_step])
-                next_load_data = pd.to_numeric(self.load_data.iloc[self.current_step])
-                next_soc_data = np.array([self.get_soc() * (0.4 * action[0] + 0.6 * (1 - action[0]))])
-                print("next_soc_data is: ", next_soc_data)
-                print("next_price_forecast is: ", next_price_forecast)
-                print("next_solar_data is: ", next_solar_data)
-                print("next_wind_data is: ", next_wind_data)
-                print("next_load_data is: ", next_load_data)
-            
+                
+                if 'EN' in market_data['current'][self.market_type]['prices']:
+                    next_price_forecast = pd.to_numeric(market_data['current'][self.market_type]['prices']['EN'][self.bus][self.current_step])
+                else:
+                    next_price_forecast = 0.0
+                
+                if 'solar' in market_data['forecast']:
+                    next_solar_data = pd.to_numeric(market_data['forecast']['solar'][self.current_step])
+                else:
+                    next_solar_data = 0.0
+                
+                if 'wind' in market_data['forecast']:
+                    next_wind_data = pd.to_numeric(market_data['forecast']['wind'][self.current_step])
+                else:
+                    next_wind_data = 0.0
+                
+                if 'load' in market_data['forecast']:
+                    next_load_data = pd.to_numeric(market_data['forecast']['load'][self.current_step])
+                else:
+                    next_load_data = 0.0
+                
+                next_soc_data = self.get_soc() * (0.4 * action + 0.6 * (1 - action))
+                
                 next_state = np.array([next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data])
-                #next_state = pd.to_numeric(next_state)
             else:
-                #next_state = pd.DataFrame(np.zeros((1, 5)), columns=['price', 'solar', 'wind', 'load', 'soc']) #pandas dataframe
                 next_state = np.zeros(5)
                 done = True  # Set done to True if self.current_step exceeds the valid range
         
-            """ # Get the next state values
-            if self.current_step < len(market_data['forecast']['load']):
-                if 'EN' in market_data['previous'][self.market_type]['prices']:
-                    next_price_forecast = pd.DataFrame(market_data['previous'][self.market_type]['prices']['EN'][self.bus][self.current_step])
-                else:
-                    next_price_forecast =pd.DataFrame(market_data['previous'][self.market_type]['prices']['EN'][self.bus][self.current_step-1])
-                
-                if 'solar' in market_data['forecast']:
-                    next_solar_data = pd.DataFrame(market_data['forecast']['solar'][self.current_step])
-                else:
-                    next_solar_data = pd.DataFrame(market_data['forecast']['solar'][self.current_step-1])  
-                
-                if 'wind' in market_data['forecast']:
-                    next_wind_data = pd.DataFrame(market_data['forecast']['wind'][self.current_step])
-                else:
-                    next_wind_data = pd.DataFrame(market_data['forecast']['wind'][self.current_step-1])  
-                
-                if 'load' in market_data['forecast']:
-                    next_load_data = pd.DataFrame(market_data['forecast']['load'][self.current_step])
-                else:
-                    next_load_data = pd.DataFrame(market_data['forecast']['load'][self.current_step-1])
-    
-    
-                next_soc_data = self.get_soc() *(0.4*action +0.6*(1-action))
-                
-                next_state = [next_price_forecast, next_solar_data, next_wind_data, next_load_data, next_soc_data] """
                 
         reward = self.calculate_reward(action)
         
