@@ -208,10 +208,10 @@ class EnergyEnvironment:
             if self.current_step < len(market_data['forecast']['load']):
                 self.bus = resource_data['bus']
                 self.rid = resource_data['rid']
-                next_price_forecast = pd.to_numeric(self.price_forecast.iloc[self.current_step+1]).item()
-                next_solar_data = pd.to_numeric(self.solar_data.iloc[self.current_step+1]).item()
-                next_wind_data = pd.to_numeric(self.wind_data.iloc[self.current_step+1]).item()
-                next_load_data = pd.to_numeric(self.load_data.iloc[self.current_step+1]).item()
+                next_price_forecast = pd.to_numeric(self.price_forecast.iloc[self.current_step+1])
+                next_solar_data = pd.to_numeric(self.solar_data.iloc[self.current_step+1])
+                next_wind_data = pd.to_numeric(self.wind_data.iloc[self.current_step+1])
+                next_load_data = pd.to_numeric(self.load_data.iloc[self.current_step+1])
                 next_soc_data = self.get_soc() * (0.4 * action + 0.6 * (1 - action))
 
             
