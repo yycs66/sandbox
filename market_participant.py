@@ -22,8 +22,8 @@ class NpEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 class Scaled_agent():
-    def __init__(self, time_step, market_info, resource_info):
-        self.step = time_step
+    def __init__(self, episode_num, market_info, resource_info):
+        self.episode_num  = episode_num 
         self.market = market_info
         self.resource = resource_info
         self.market_type = market_info['market_type']
@@ -32,7 +32,7 @@ class Scaled_agent():
 
     def scaling(self, da, scaling_factor):
         # Parse inputs
-        dummy_agent = da.Agent(time_step, market_info, resource_info)
+        dummy_agent = da.Agent(episode_num , market_info, resource_info)
         dummy_offer = dummy_agent.make_me_an_offer()
         timestamp = list(dummy_offer[self.rid]['block_ch_mc'].keys())
         factor_action_dict = dict(zip(timestamp, scaling_factor))
