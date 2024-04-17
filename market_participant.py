@@ -419,7 +419,7 @@ if __name__ == "__main__":
         rl_step += 1
 
         #total_reward += episode_reward
-        print(f"Episode {episode_num}: Estimated Reward = {episode_reward}")
+        #print(f"Episode {episode_num} Step {rl_step}: Estimated Reward = {episode_reward}")
 
         # Save actions taken in the episode
         action_filename = f'action_{episode_num}.json'
