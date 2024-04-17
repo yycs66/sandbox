@@ -23,7 +23,7 @@ class NpEncoder(json.JSONEncoder):
 
 class Scaled_agent():
     def __init__(self, episode_num, market_info, resource_info):
-        self.episode_num  = episode_num 
+        self.step = episode_num 
         self.market = market_info
         self.resource = resource_info
         self.market_type = market_info['market_type']
@@ -390,7 +390,7 @@ if __name__ == "__main__":
     done = False
     episode_reward = 0
     actions_taken = []
-    step =0
+    rl_step =0
 
     while not done:
         action = agent.choose_action(state)
@@ -416,7 +416,7 @@ if __name__ == "__main__":
         episode_reward += reward
             
         state = next_state
-        step += 1
+        rl_step += 1
 
         #total_reward += episode_reward
         print(f"Episode {episode_num}: Estimated Reward = {episode_reward}")
