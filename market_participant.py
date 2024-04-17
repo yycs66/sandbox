@@ -351,14 +351,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Parse inputs
-    time_step = args.time_step
+    episode_num = args.time_step
     with open(args.market_file, 'r') as f:
         market_info = json.load(f)
-    with open(f'market_{time_step-1}.json', 'w') as f:
+    with open(f'market_{episode_num-1}.json', 'w') as f:
         json.dump(market_info, f, cls=NpEncoder) 
     with open(args.resource_file, 'r') as f:
         resource_info = json.load(f)
-    with open(f'resource_{time_step-1}.json', 'w') as f:
+    with open(f'resource_{episode_num-1}.json', 'w') as f:
         json.dump(resource_info, f, cls=NpEncoder)
 
     # Define state and action dimensions
@@ -382,53 +382,48 @@ if __name__ == "__main__":
     total_reward = 0
 
     # Testing loop
-    while True:
-        episode = time_step
-        #print("episode is: ", episode)
-        env = EnergyEnvironment(episode)
-        state = env.reset()
-        done = False
-        episode_reward = 0
-        actions_taken = []
+    
+    episode = episode_num
+    #print("episode is: ", episode)
+    env = EnergyEnvironment(episode)
+    state = env.reset()
+    done = False
+    episode_reward = 0
+    actions_taken = []
+    step =0
 
-        while not done:
-            action = agent.choose_action(state)
-            factors = action
+    while not done:
+        action = agent.choose_action(state)
+        factors = action
 
-            scaled_agent = Scaled_agent(time_step, market_info, resource_info)
-            scaled_agent.scaling(da, factors)
+        scaled_agent = Scaled_agent(episode_num, market_info, resource_info)
+        scaled_agent.scaling(da, factors)
             # Write the updated market and resource information to file
-            with open(args.market_file, 'w') as f:
-                json.dump(market_info, f, cls=NpEncoder)
-            with open(f'market_{time_step}.json', 'w') as f:
-                json.dump(market_info, f, cls=NpEncoder)
-            with open(args.resource_file, 'w') as f:
-                json.dump(resource_info, f, cls=NpEncoder)
-            with open(f'resource_{time_step}.json', 'w') as f:
-                json.dump(resource_info, f, cls=NpEncoder)
+        with open(args.market_file, 'w') as f:
+            json.dump(market_info, f, cls=NpEncoder)
+        with open(f'market_{episode_num}.json', 'w') as f:
+            json.dump(market_info, f, cls=NpEncoder)
+        with open(args.resource_file, 'w') as f:
+            json.dump(resource_info, f, cls=NpEncoder)
+        with open(f'resource_{episode_num}.json', 'w') as f:
+            json.dump(resource_info, f, cls=NpEncoder)
 
 
-            next_state, reward, done = env.step(action)
+        next_state, reward, done = env.step(action)
             
             # Estimate the reward based on the action taken
-            reward = env.calculate_reward(action)  # Calculate the reward
-            episode_reward += reward
+        reward = env.calculate_reward(action)  # Calculate the reward
+        episode_reward += reward
             
-            state = next_state
+        state = next_state
+        step += 1
 
-        total_reward += episode_reward
-        print(f"Episode {time_step}: Estimated Reward = {episode_reward}")
+        #total_reward += episode_reward
+        print(f"Episode {episode_num}: Estimated Reward = {episode_reward}")
 
         # Save actions taken in the episode
-        action_filename = f'action_{time_step}.json'
+        action_filename = f'action_{episode_num}.json'
         action_data = {'actions': factors.tolist()}
         with open(action_filename, 'w') as file:
             json.dump(action_data, file)
         
-        time_step += 1
-        
-        # Check if the simulation has reached the end
-        if time_step >= 289 * 1: # test 1 day
-            break
-
-    print(f"Total Estimated Reward over {time_step} episodes: {total_reward}")
